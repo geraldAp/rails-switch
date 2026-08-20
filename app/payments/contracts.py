@@ -1,30 +1,29 @@
-# app/payments/contracts.py
-
+from app.payments.enums import Country, Currency, PaymentProvider as Provider, PaymentStatus
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 
 @dataclass(slots=True)
 class CheckoutRequest:
-    country: str
+    country: Country
     amount_minor: int
-    currency: str
+    currency: Currency
     email: str
 
 
 @dataclass(slots=True)
 class CheckoutResponse:
     reference: str
-    provider: str
-    status: str
+    provider: Provider
+    status: PaymentStatus
     checkout_url: str
 
 
 @dataclass(slots=True)
 class DisbursementRequest:
-    country: str
+    country: Country
     amount_minor: int
-    currency: str
+    currency: Currency
     account_number: str
     bank_code: str
     account_name: str | None = None
@@ -33,8 +32,8 @@ class DisbursementRequest:
 @dataclass(slots=True)
 class DisbursementResponse:
     reference: str
-    provider: str
-    status: str
+    provider: Provider
+    status: PaymentStatus
 
 
 @dataclass(slots=True)
@@ -45,11 +44,10 @@ class VerificationRequest:
 @dataclass(slots=True)
 class VerificationResponse:
     reference: str
-    provider: str
-    status: str
+    provider: Provider
+    status: PaymentStatus
     amount_minor: int | None = None
-    currency: str | None = None
-
+    currency: Currency | None = None
 
 class PaymentProvider(ABC):
     @abstractmethod
