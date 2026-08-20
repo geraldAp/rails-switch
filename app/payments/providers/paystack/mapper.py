@@ -10,10 +10,8 @@ from app.payments.enums import (
     Country,
     Currency,
     DisbursementMethod,
-    PaymentStatus,
-)
-from app.payments.enums import (
     PaymentProvider as Provider,
+    PaymentStatus,
 )
 from app.payments.providers.paystack.types import (
     PaystackChannel,
@@ -110,8 +108,6 @@ class PaystackMapper:
             ),
         )
 
-    # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
-
     @staticmethod
     def from_verification_response(
         response: PaystackVerificationResponse,
@@ -125,8 +121,6 @@ class PaystackMapper:
             amount_minor=data["amount"],
             currency=Currency(data["currency"]),
         )
-
-    # ── PRIVATE HELPERS ────────────────────────────────────────────────
 
     @staticmethod
     def _map_collection_method(
