@@ -43,6 +43,7 @@ class DisbursementResponse:
 @dataclass(slots=True)
 class VerificationRequest:
     reference: str
+    country: Country
 
 
 @dataclass(slots=True)
