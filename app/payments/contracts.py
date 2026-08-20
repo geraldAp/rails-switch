@@ -10,6 +10,7 @@ class CheckoutRequest:
     currency: Currency
     email: str
     payment_methods: list[CollectionMethod] | None = None
+    
 
 
 @dataclass(slots=True)
