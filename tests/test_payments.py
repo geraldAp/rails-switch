@@ -38,7 +38,10 @@ from app.payments.providers.paystack.types import (
 from app.payments.service import PaymentService
 
 
-class StubProvider(PaymentProvider):
+class VerificationProviderSpy(PaymentProvider):
+    def __init__(self) -> None:
+        self.verification_request: VerificationRequest | None = None
+
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
         raise NotImplementedError
 
@@ -46,6 +49,7 @@ class StubProvider(PaymentProvider):
         raise NotImplementedError
 
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
+        self.verification_request = request
         return VerificationResponse(
             request.provider_reference, request.provider, PaymentStatus.PENDING
         )
@@ -152,28 +156,31 @@ class StubPaystackClient(PaystackClient):
         )
 
 
-def test_factory_selects_one_provider_implementation_per_provider() -> None:
-    paystack = StubProvider()
-    bach = StubProvider()
+def test_factory_routes_countries_and_honors_an_explicit_provider() -> None:
+    paystack = VerificationProviderSpy()
+    bach = VerificationProviderSpy()
+    stripe = VerificationProviderSpy()
     factory = PaymentProviderFactory(
         paystack=paystack,
         bach=bach,
-        stripe=StubProvider(),
+        stripe=stripe,
     )
 
     assert factory.get_provider(Country.GHANA) is paystack
     assert factory.get_provider(Country.SOUTH_AFRICA) is paystack
     assert factory.get_provider(Country.NIGERIA) is bach
+    assert factory.get_provider(Country.UNITED_STATES) is stripe
+    assert factory.get_provider(Country.CANADA) is stripe
     assert factory.get_provider(Country.NIGERIA, Provider.PAYSTACK) is paystack
 
 
 def test_verify_uses_requested_provider_and_country() -> None:
-    paystack = StubProvider()
+    paystack = VerificationProviderSpy()
     service = PaymentService(
         PaymentProviderFactory(
             paystack=paystack,
-            bach=StubProvider(),
-            stripe=StubProvider(),
+            bach=VerificationProviderSpy(),
+            stripe=VerificationProviderSpy(),
         )
     )
     request = VerificationRequest(
@@ -187,6 +194,7 @@ def test_verify_uses_requested_provider_and_country() -> None:
         asyncio.run(service.verify(request)).provider_reference
         == request.provider_reference
     )
+    assert paystack.verification_request is request
 
 
 def test_client_resolves_headers_by_country() -> None:
