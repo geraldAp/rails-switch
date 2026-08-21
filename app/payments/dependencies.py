@@ -30,6 +30,11 @@ def build_payment_service() -> PaymentService:
     return PaymentService(provider_factory=provider_factory)
 
 
+@lru_cache
+def get_payment_service() -> PaymentService:
+    return build_payment_service()
+
+
 def _paystack_secrets() -> dict[Country, str]:
     secrets = {
         Country.GHANA: settings.paystack_gh_secret_key,
@@ -55,6 +60,3 @@ def _bach_api_key() -> str:
     return settings.bach_api_key
 
 
-@lru_cache
-def get_payment_service() -> PaymentService:
-    return build_payment_service()
