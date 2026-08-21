@@ -28,6 +28,7 @@ from app.payments.providers.bach.types import (
     BachCheckoutResponse,
     BachPayoutDestinationRequest,
     BachPayoutDestinationResponse,
+    BachPayoutDetails,
     BachPayoutRequest,
     BachPayoutResponse,
 )
@@ -63,6 +64,8 @@ class StubBachClient(BachClient):
         self.is_usable = is_usable
         self.payout_called = False
         self.payout_reference: str | None = None
+        self.payout_id: str | None = None
+        self.checkout_id: str | None = None
 
     async def create_checkout(
         self, payload: BachCheckoutRequest
@@ -77,6 +80,7 @@ class StubBachClient(BachClient):
         }
 
     async def retrieve_checkout(self, checkout_id: str) -> BachCheckoutDetails:
+        self.checkout_id = checkout_id
         return {
             "checkout_id": checkout_id,
             "status": "completed",
@@ -100,7 +104,23 @@ class StubBachClient(BachClient):
         self.payout_called = True
         assert idempotency_key == payload["reference"]
         self.payout_reference = payload["reference"]
-        return {"status": "pending", "reference": payload["reference"]}
+        return {
+            "id": "pay_123",
+            "status": "pending",
+            "amount": payload["amount"],
+            "currency": "NGN",
+            "reference": payload["reference"],
+        }
+
+    async def get_payout(self, withdrawal_id: str) -> BachPayoutDetails:
+        self.payout_id = withdrawal_id
+        return {
+            "id": withdrawal_id,
+            "status": "completed",
+            "amount": "5000.00",
+            "currency": "NGN",
+            "reference": "railswitch-payout",
+        }
 
 
 def test_mapper_converts_minor_amounts_without_floats() -> None:
@@ -187,16 +207,20 @@ def test_mapper_normalizes_verification_statuses(
 def test_mapper_normalizes_payout_statuses(
     status: str, expected: PaymentStatus
 ) -> None:
-    response: BachPayoutResponse = {"status": status, "reference": "payout-123"}
+    response: BachPayoutDetails = {
+        "id": "pay_123",
+        "status": status,
+        "amount": "50.00",
+        "currency": "NGN",
+        "reference": "payout-123",
+    }
 
-    assert (
-        BachMapper.from_payout_response(response, disbursement_request()).status
-        is expected
-    )
+    assert BachMapper.from_payout_verification_response(response).status is expected
 
 
 def test_provider_uses_checkout_id_for_verification() -> None:
-    provider = BachProvider(StubBachClient())
+    client = StubBachClient()
+    provider = BachProvider(client)
     request = checkout_request([CollectionMethod.CARD])
     request.reference = "PAY-456"
     checkout = asyncio.run(provider.collect(request))
@@ -214,9 +238,33 @@ def test_provider_uses_checkout_id_for_verification() -> None:
     assert checkout.reference == "PAY-456"
     assert checkout.provider_reference == "chk_123"
     assert checkout.reference != checkout.provider_reference
+    assert client.checkout_id == checkout.provider_reference
     assert checkout.status is PaymentStatus.PENDING
     assert verification.status is PaymentStatus.SUCCESS
     assert verification.amount_minor == 5_000
+
+
+def test_provider_uses_payout_id_for_disbursement_verification() -> None:
+    client = StubBachClient()
+    provider = BachProvider(client)
+    payout = asyncio.run(provider.disburse(disbursement_request()))
+
+    verification = asyncio.run(
+        provider.verify(
+            VerificationRequest(
+                provider_reference=payout.provider_reference,
+                provider=PaymentProvider.BACH,
+                country=Country.NIGERIA,
+                operation=PaymentOperation.DISBURSEMENT,
+            )
+        )
+    )
+
+    assert client.payout_id == payout.provider_reference == "pay_123"
+    assert verification.provider_reference == payout.provider_reference
+    assert verification.status is PaymentStatus.SUCCESS
+    assert verification.raw_response is not None
+    assert verification.raw_response["id"] == payout.provider_reference
 
 
 def test_provider_does_not_create_payout_for_unusable_destination() -> None:
@@ -234,7 +282,7 @@ def test_provider_uses_one_reference_for_payout_and_idempotency() -> None:
 
     assert response.status is PaymentStatus.PENDING
     assert response.reference == client.payout_reference
-    assert response.provider_reference == client.payout_reference
+    assert response.provider_reference == "pay_123"
 
 
 def test_client_sends_payout_idempotency_header(
@@ -247,7 +295,13 @@ def test_client_sends_payout_idempotency_header(
             return None
 
         def json(self) -> object:
-            return {"status": "pending", "reference": "payout-123"}
+            return {
+                "id": "pay_123",
+                "status": "pending",
+                "amount": "5000.00",
+                "currency": "NGN",
+                "reference": "payout-123",
+            }
 
     class AsyncClient:
         async def __aenter__(self) -> Self:
@@ -281,6 +335,53 @@ def test_client_sends_payout_idempotency_header(
                 "Idempotency-Key": "railswitch-payout",
             },
             "json": payload,
+        }
+    ]
+
+
+def test_client_gets_payout_by_withdrawal_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> object:
+            return {
+                "id": "pay_123",
+                "status": "completed",
+                "amount": "5000.00",
+                "currency": "NGN",
+                "reference": "payout-123",
+            }
+
+    class AsyncClient:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def get(self, url: str, **kwargs: object) -> Response:
+            calls.append({"url": url, **kwargs})
+            return Response()
+
+    monkeypatch.setattr(
+        "app.payments.providers.bach.client.httpx2.AsyncClient", AsyncClient
+    )
+    client = BachClient(api_key="bach-key", base_url="https://sandbox.bachs.test")
+
+    asyncio.run(client.get_payout("pay_123"))
+
+    assert calls == [
+        {
+            "url": "https://sandbox.bachs.test/v1/payouts/pay_123",
+            "headers": {
+                "Authorization": "Bearer bach-key",
+                "Content-Type": "application/json",
+            },
         }
     ]
 

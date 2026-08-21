@@ -8,6 +8,7 @@ from app.payments.providers.bach.types import (
     BachCheckoutResponse,
     BachPayoutDestinationRequest,
     BachPayoutDestinationResponse,
+    BachPayoutDetails,
     BachPayoutRequest,
     BachPayoutResponse,
 )
@@ -53,6 +54,15 @@ class BachClient:
             )
             response.raise_for_status()
             return cast(BachCheckoutDetails, response.json())
+
+    async def get_payout(self, withdrawal_id: str) -> BachPayoutDetails:
+        async with httpx2.AsyncClient() as client:
+            response = await client.get(
+                f"{self.base_url}/v1/payouts/{withdrawal_id}",
+                headers=self.headers,
+            )
+            response.raise_for_status()
+            return cast(BachPayoutDetails, response.json())
 
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
 

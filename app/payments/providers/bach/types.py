@@ -68,5 +68,19 @@ class BachPayoutRequest(TypedDict):
 
 
 class BachPayoutResponse(TypedDict):
+    id: str
     status: str
-    reference: str
+    amount: str
+    currency: str
+    reference: str | None
+    source_currency: NotRequired[str | None]
+    fee: NotRequired[str | None]
+    total_debited: NotRequired[str | None]
+    destination: NotRequired[str | None]
+    failure_reason: NotRequired[str | None]
+    created_at: NotRequired[str | None]
+    completed_at: NotRequired[str | None]
+
+
+class BachPayoutDetails(BachPayoutResponse):
+    """The Get Payout response has the same shape as payout creation."""

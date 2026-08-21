@@ -10,6 +10,7 @@ from app.payments.contracts import (
     VerificationRequest,
     VerificationResponse,
 )
+from app.payments.enums import PaymentOperation
 from app.payments.providers.bach.client import BachClient
 from app.payments.providers.bach.mapper import BachMapper
 
@@ -57,6 +58,9 @@ class BachProvider(PaymentProvider):
     # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
 
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
+        if request.operation is PaymentOperation.DISBURSEMENT:
+            response = await self.client.get_payout(request.provider_reference)
+            return BachMapper.from_payout_verification_response(response)
         response = await self.client.retrieve_checkout(request.provider_reference)
         return BachMapper.from_verification_response(response)
 

@@ -22,6 +22,7 @@ from app.payments.providers.bach.types import (
     BachCheckoutResponse,
     BachPaymentMethod,
     BachPayoutDestinationRequest,
+    BachPayoutDetails,
     BachPayoutRequest,
     BachPayoutResponse,
 )
@@ -116,11 +117,24 @@ class BachMapper:
     ) -> DisbursementResponse:
         return DisbursementResponse(
             reference=request.reference,
-            provider_reference=response["reference"],
+            provider_reference=response["id"],
             provider=Provider.BACH,
             method=request.method,
             status=BachMapper._map_payout_status(response["status"]),
             metadata=request.metadata,
+            raw_response=dict(response),
+        )
+
+    @staticmethod
+    def from_payout_verification_response(
+        response: BachPayoutDetails,
+    ) -> VerificationResponse:
+        return VerificationResponse(
+            provider_reference=response["id"],
+            provider=Provider.BACH,
+            status=BachMapper._map_payout_status(response["status"]),
+            amount_minor=BachMapper.decimal_to_minor(response["amount"]),
+            currency=Currency(response["currency"]),
             raw_response=dict(response),
         )
 

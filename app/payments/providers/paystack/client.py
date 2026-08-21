@@ -72,6 +72,21 @@ class PaystackClient:
 
             return cast(PaystackVerificationResponse, response.json())
 
+    async def verify_transfer(
+        self,
+        country: Country,
+        reference: str,
+    ) -> PaystackTransferResponse:
+        async with httpx2.AsyncClient() as client:
+            response = await client.get(
+                f"{self.base_url}/transfer/verify/{reference}",
+                headers=self._get_headers(country),
+            )
+
+            response.raise_for_status()
+
+            return cast(PaystackTransferResponse, response.json())
+
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
 
     async def create_transfer_recipient(

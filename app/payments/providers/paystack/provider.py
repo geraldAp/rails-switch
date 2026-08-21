@@ -10,6 +10,7 @@ from app.payments.contracts import (
     VerificationRequest,
     VerificationResponse,
 )
+from app.payments.enums import PaymentOperation
 from app.payments.providers.paystack.client import PaystackClient
 from app.payments.providers.paystack.mapper import PaystackMapper
 
@@ -87,6 +88,13 @@ class PaystackProvider(PaymentProvider):
         self,
         request: VerificationRequest,
     ) -> VerificationResponse:
+        if request.operation is PaymentOperation.DISBURSEMENT:
+            response = await self.client.verify_transfer(
+                country=request.country,
+                reference=request.provider_reference,
+            )
+            return PaystackMapper.from_transfer_verification_response(response)
+
         response = await self.client.verify_transaction(
             country=request.country,
             reference=request.provider_reference,
