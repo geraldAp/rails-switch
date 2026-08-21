@@ -62,12 +62,14 @@ class PaystackMapper:
         request: CheckoutRequest,
     ) -> CheckoutResponse:
         return CheckoutResponse(
-            reference=response["data"]["reference"],
+            reference=request.reference,
+            provider_reference=response["data"]["reference"],
             provider=Provider.PAYSTACK,
             status=PaymentStatus.PENDING,
             checkout_url=response["data"]["authorization_url"],
             payment_methods=request.payment_methods,
             metadata=request.metadata,
+            raw_response=dict(response),
         )
 
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
@@ -107,11 +109,13 @@ class PaystackMapper:
         request: DisbursementRequest,
     ) -> DisbursementResponse:
         return DisbursementResponse(
-            reference=response["data"]["reference"],
+            reference=request.reference,
+            provider_reference=response["data"]["reference"],
             provider=Provider.PAYSTACK,
             method=request.method,
             status=PaystackMapper._map_status(response["data"]["status"]),
             metadata=request.metadata,
+            raw_response=dict(response),
         )
 
     @staticmethod
@@ -121,11 +125,12 @@ class PaystackMapper:
         data = response["data"]
 
         return VerificationResponse(
-            reference=data["reference"],
+            provider_reference=data["reference"],
             provider=Provider.PAYSTACK,
             status=PaystackMapper._map_status(data["status"]),
             amount_minor=data["amount"],
             currency=Currency(data["currency"]),
+            raw_response=dict(response),
         )
 
     @staticmethod
@@ -169,6 +174,11 @@ class PaystackMapper:
 
             case Country.SOUTH_AFRICA:
                 return PaystackRecipientType.BASA
+
+            case _:
+                raise ValueError(
+                    f"Paystack does not support {request.country.value} disbursements"
+                )
 
     @staticmethod
     def _map_status(

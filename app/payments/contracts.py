@@ -25,12 +25,15 @@ class CheckoutRequest:
 
 @dataclass(slots=True)
 class CheckoutResponse:
-    reference: str
+    reference: str | None
+    provider_reference: str
     provider: Provider
     status: PaymentStatus
     checkout_url: str
     payment_methods: list[CollectionMethod] | None = None
     metadata: dict[str, str] | None = None
+    # Raw provider payloads may contain sensitive customer or payment data.
+    raw_response: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
@@ -48,16 +51,18 @@ class DisbursementRequest:
 
 @dataclass(slots=True)
 class DisbursementResponse:
-    reference: str
+    reference: str | None
+    provider_reference: str
     provider: Provider
     method: DisbursementMethod
     status: PaymentStatus
     metadata: dict[str, str] | None = None
+    raw_response: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
 class VerificationRequest:
-    reference: str
+    provider_reference: str
     provider: Provider
     country: Country
     operation: PaymentOperation
@@ -65,11 +70,12 @@ class VerificationRequest:
 
 @dataclass(slots=True)
 class VerificationResponse:
-    reference: str
+    provider_reference: str
     provider: Provider
     status: PaymentStatus
     amount_minor: int | None = None
     currency: Currency | None = None
+    raw_response: dict[str, object] | None = None
 
 
 class PaymentProvider(ABC):

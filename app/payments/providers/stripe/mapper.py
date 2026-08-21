@@ -53,12 +53,14 @@ class StripeMapper:
         response: StripeCheckoutSession, request: CheckoutRequest
     ) -> CheckoutResponse:
         return CheckoutResponse(
+            request.reference,
             response["id"],
             PaymentProvider.STRIPE,
             PaymentStatus.PENDING,
             response["url"],
             request.payment_methods,
             request.metadata,
+            dict(response),
         )
 
     @staticmethod
@@ -75,12 +77,16 @@ class StripeMapper:
         currency = (
             payment_intent["currency"] if payment_intent else response["currency"]
         )
+        raw_response: dict[str, object] = {"checkout_session": dict(response)}
+        if payment_intent is not None:
+            raw_response["payment_intent"] = dict(payment_intent)
         return VerificationResponse(
             response["id"],
             PaymentProvider.STRIPE,
             status,
             amount,
             Currency(currency.upper()) if currency else None,
+            raw_response,
         )
 
     @staticmethod
@@ -91,6 +97,7 @@ class StripeMapper:
             StripeMapper._payout_status(response["status"]),
             response["amount"],
             Currency(response["currency"].upper()),
+            dict(response),
         )
 
     @staticmethod

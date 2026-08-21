@@ -10,8 +10,8 @@ from app.payments.contracts import (
     DisbursementRequest,
     DisbursementResponse,
     PaymentProvider,
-    VerificationResponse,
     VerificationRequest,
+    VerificationResponse,
 )
 from app.payments.enums import (
     CollectionMethod,
@@ -33,6 +33,7 @@ from app.payments.providers.paystack.types import (
     PaystackTransferRecipientResponse,
     PaystackTransferRequest,
     PaystackTransferResponse,
+    PaystackVerificationResponse,
 )
 from app.payments.service import PaymentService
 
@@ -45,13 +46,16 @@ class StubProvider(PaymentProvider):
         raise NotImplementedError
 
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
-        return VerificationResponse(request.reference, request.provider, PaymentStatus.PENDING)
+        return VerificationResponse(
+            request.provider_reference, request.provider, PaymentStatus.PENDING
+        )
 
 
 class StubPaystackClient(PaystackClient):
     def __init__(self) -> None:
         super().__init__(secrets={Country.GHANA: "test-secret"})
         self.transfer_reference: str | None = None
+        self.verification_reference: str | None = None
 
     async def create_transfer_recipient(
         self,
@@ -60,11 +64,14 @@ class StubPaystackClient(PaystackClient):
     ) -> PaystackTransferRecipientResponse:
         return cast(
             PaystackTransferRecipientResponse,
-            cast(object, {
-                "status": True,
-                "message": "ok",
-                "data": {"recipient_code": "RCP_1"},
-            }),
+            cast(
+                object,
+                {
+                    "status": True,
+                    "message": "ok",
+                    "data": {"recipient_code": "RCP_1"},
+                },
+            ),
         )
 
     async def initiate_transfer(
@@ -75,14 +82,38 @@ class StubPaystackClient(PaystackClient):
         self.transfer_reference = payload["reference"]
         return cast(
             PaystackTransferResponse,
-            cast(object, {
-                "status": True,
-                "message": "ok",
-                "data": {
-                    "reference": payload["reference"],
-                    "status": "pending",
+            cast(
+                object,
+                {
+                    "status": True,
+                    "message": "ok",
+                    "data": {
+                        "reference": payload["reference"],
+                        "status": "pending",
+                    },
                 },
-            }),
+            ),
+        )
+
+    async def verify_transaction(
+        self, country: Country, reference: str
+    ) -> PaystackVerificationResponse:
+        self.verification_reference = reference
+        return cast(
+            PaystackVerificationResponse,
+            cast(
+                object,
+                {
+                    "status": True,
+                    "message": "ok",
+                    "data": {
+                        "reference": reference,
+                        "status": "success",
+                        "amount": 100,
+                        "currency": "GHS",
+                    },
+                },
+            ),
         )
 
 
@@ -117,7 +148,10 @@ def test_verify_uses_requested_provider_and_country() -> None:
         PaymentOperation.COLLECTION,
     )
 
-    assert asyncio.run(service.verify(request)).reference == request.reference
+    assert (
+        asyncio.run(service.verify(request)).provider_reference
+        == request.provider_reference
+    )
 
 
 def test_client_resolves_headers_by_country() -> None:
@@ -229,4 +263,24 @@ def test_disbursement_generates_one_paystack_compatible_reference() -> None:
 
     assert client.transfer_reference is not None
     assert response.reference == client.transfer_reference
-    assert re.fullmatch(r"railswitch-[a-f0-9]{32}", response.reference)
+    assert response.provider_reference == client.transfer_reference
+    assert re.fullmatch(r"railswitch-[a-f0-9]{32}", response.provider_reference)
+
+
+def test_paystack_verification_uses_provider_reference() -> None:
+    client = StubPaystackClient()
+    provider = PaystackProvider(client, "https://example.test/callback")
+
+    response = asyncio.run(
+        provider.verify(
+            VerificationRequest(
+                provider_reference="provider-ref",
+                provider=Provider.PAYSTACK,
+                country=Country.GHANA,
+                operation=PaymentOperation.COLLECTION,
+            )
+        )
+    )
+
+    assert client.verification_reference == "provider-ref"
+    assert response.provider_reference == "provider-ref"

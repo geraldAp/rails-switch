@@ -36,9 +36,11 @@ class StripeProvider(PaymentProvider):
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
         if request.operation is PaymentOperation.DISBURSEMENT:
             return StripeMapper.from_payout(
-                await self.client.retrieve_payout(request.reference)
+                await self.client.retrieve_payout(request.provider_reference)
             )
-        session = await self.client.retrieve_checkout_session(request.reference)
+        session = await self.client.retrieve_checkout_session(
+            request.provider_reference
+        )
         payment_intent = (
             await self.client.retrieve_payment_intent(session["payment_intent"])
             if session["payment_intent"]

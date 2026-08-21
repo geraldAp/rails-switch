@@ -61,12 +61,14 @@ class BachMapper:
         # Bachs retrieval requires checkout_id, so this is the only reference
         # callers can later use to verify without persistence.
         return CheckoutResponse(
-            reference=response["checkout_id"],
+            reference=request.reference,
+            provider_reference=response["checkout_id"],
             provider=Provider.BACH,
             status=PaymentStatus.PENDING,
             checkout_url=response["checkout_url"],
             payment_methods=request.payment_methods,
             metadata=request.metadata,
+            raw_response=dict(response),
         )
 
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
@@ -113,11 +115,13 @@ class BachMapper:
         request: DisbursementRequest,
     ) -> DisbursementResponse:
         return DisbursementResponse(
-            reference=response["reference"],
+            reference=request.reference,
+            provider_reference=response["reference"],
             provider=Provider.BACH,
             method=request.method,
             status=BachMapper._map_payout_status(response["status"]),
             metadata=request.metadata,
+            raw_response=dict(response),
         )
 
     @staticmethod
@@ -125,11 +129,12 @@ class BachMapper:
         response: BachCheckoutDetails,
     ) -> VerificationResponse:
         return VerificationResponse(
-            reference=response["checkout_id"],
+            provider_reference=response["checkout_id"],
             provider=Provider.BACH,
             status=BachMapper._map_payment_status(response.get("payment_status")),
             amount_minor=BachMapper.decimal_to_minor(response["amount"]),
             currency=Currency(response["currency"]),
+            raw_response=dict(response),
         )
 
     @staticmethod
