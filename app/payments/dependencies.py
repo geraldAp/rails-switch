@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from app.core.config import settings
 from app.payments.enums import Country
 from app.payments.factory import PaymentProviderFactory
@@ -5,8 +7,10 @@ from app.payments.providers.bach.client import BachClient
 from app.payments.providers.bach.provider import BachProvider
 from app.payments.providers.paystack.client import PaystackClient
 from app.payments.providers.paystack.provider import PaystackProvider
+from app.payments.providers.stripe.client import StripeClient
+from app.payments.providers.stripe.provider import StripeProvider
 from app.payments.service import PaymentService
-from functools import lru_cache
+
 
 def build_payment_service() -> PaymentService:
     """Assemble the configured payment providers and common service."""
@@ -22,9 +26,15 @@ def build_payment_service() -> PaymentService:
         base_url=settings.bach_base_url,
     )
     bach_provider = BachProvider(client=bach_client)
+    stripe_provider = StripeProvider(
+        StripeClient(_stripe_secret_key()),
+        settings.stripe_success_url,
+        settings.stripe_cancel_url,
+    )
     provider_factory = PaymentProviderFactory(
         paystack=paystack_provider,
         bach=bach_provider,
+        stripe=stripe_provider,
     )
 
     return PaymentService(provider_factory=provider_factory)
@@ -60,3 +70,7 @@ def _bach_api_key() -> str:
     return settings.bach_api_key
 
 
+def _stripe_secret_key() -> str:
+    if settings.stripe_secret_key is None:
+        raise ValueError("Missing Stripe secret key configuration")
+    return settings.stripe_secret_key

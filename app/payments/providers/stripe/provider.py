@@ -1,0 +1,43 @@
+from app.payments.contracts import (
+    CheckoutRequest,
+    CheckoutResponse,
+    DisbursementRequest,
+    DisbursementResponse,
+    PaymentProvider,
+    VerificationRequest,
+    VerificationResponse,
+)
+from app.payments.enums import PaymentOperation
+from app.payments.providers.stripe.client import StripeClient
+from app.payments.providers.stripe.mapper import StripeMapper
+
+
+class StripeProvider(PaymentProvider):
+    def __init__(self, client: StripeClient, success_url: str, cancel_url: str) -> None:
+        self.client = client
+        self.success_url = success_url
+        self.cancel_url = cancel_url
+
+    async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
+        response = await self.client.create_checkout_session(
+            StripeMapper.to_checkout_request(request, self.success_url, self.cancel_url)
+        )
+        return StripeMapper.from_checkout(response, request)
+
+    async def disburse(self, request: DisbursementRequest) -> DisbursementResponse:
+        raise ValueError(
+            "Stripe payout creation is unsupported: RailSwitch does not identify a configured Stripe external account"
+        )
+
+    async def verify(self, request: VerificationRequest) -> VerificationResponse:
+        if request.operation is PaymentOperation.DISBURSEMENT:
+            return StripeMapper.from_payout(
+                await self.client.retrieve_payout(request.reference)
+            )
+        session = await self.client.retrieve_checkout_session(request.reference)
+        payment_intent = (
+            await self.client.retrieve_payment_intent(session["payment_intent"])
+            if session["payment_intent"]
+            else None
+        )
+        return StripeMapper.from_collection(session, payment_intent)

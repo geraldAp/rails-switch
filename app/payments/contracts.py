@@ -6,6 +6,7 @@ from app.payments.enums import (
     Country,
     Currency,
     DisbursementMethod,
+    PaymentOperation,
     PaymentStatus,
 )
 from app.payments.enums import PaymentProvider as Provider
@@ -53,6 +54,7 @@ class VerificationRequest:
     reference: str
     provider: Provider
     country: Country
+    operation: PaymentOperation
 
 
 @dataclass(slots=True)

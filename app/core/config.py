@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     paystack_callback_url: str = ""
     bach_api_key: str | None = None
     bach_base_url: str = "https://sandbox-api.bachs.io"
+    stripe_secret_key: str | None = None
+    stripe_success_url: str = ""
+    stripe_cancel_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

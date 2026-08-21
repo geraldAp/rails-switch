@@ -12,9 +12,11 @@ class PaymentProviderFactory:
         self,
         paystack: PaymentProvider,
         bach: PaymentProvider,
+        stripe: PaymentProvider,
     ):
         self.paystack = paystack
         self.bach = bach
+        self.stripe = stripe
 
     def get_provider(
         self,
@@ -30,6 +32,8 @@ class PaymentProviderFactory:
 
             case Provider.BACH:
                 return self.bach
+            case Provider.STRIPE:
+                return self.stripe
 
             case _:
                 raise ValueError(f"Provider {provider} is not configured")
@@ -44,6 +48,8 @@ class PaymentProviderFactory:
 
             case Country.NIGERIA:
                 return Provider.BACH
+            case Country.UNITED_STATES | Country.CANADA:
+                return Provider.STRIPE
 
             case _:
                 raise ValueError(f"No default provider is configured for {country}")
