@@ -22,16 +22,17 @@ class Currency(StrEnum):
     GHS = "GHS"
     NGN = "NGN"
     ZAR = "ZAR"
-    
-    
+
+
 class CollectionMethod(StrEnum):
     CARD = "card"
     BANK_TRANSFER = "bank_transfer"
     MOBILE_MONEY = "mobile_money"
     USSD = "ussd"
     QR = "qr"
-    
+
+
 class DisbursementMethod(StrEnum):
     BANK_ACCOUNT = "bank_account"
     MOBILE_MONEY = "mobile_money"
-    DEBIT_CARD = "debit_card"    
+    DEBIT_CARD = "debit_card"
