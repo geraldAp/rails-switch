@@ -175,12 +175,13 @@ code can call the service directly.
 - **Paystack checkout and transfer amounts** remain minor-unit values. Its
   client selects the Ghana or South Africa bearer key from `request.country`.
 - **Paystack disbursement** creates a transfer recipient, generates one
-  `railswitch-<uuid>` reference, then initiates the transfer.
+  `railswitch-<uuid>` application reference when the caller did not supply one,
+  then initiates the transfer. Paystack uses that value as its transfer lookup
+  reference, so `reference` and `provider_reference` can legitimately match.
 - **Bachs checkout and payout amounts** are mapped from integer minor units to
   two-decimal `Decimal` strings (for example, `5000` NGN becomes `"50.00"`).
-- **Bachs checkout verification** uses the Bachs `checkout_id` as RailSwitch's
-  normalized reference, because Bachs retrieves checkout sessions by that ID
-  and the MVP has no transaction persistence.
+- **Bachs checkout verification** uses the Bachs `checkout_id` as
+  `provider_reference`, because Bachs retrieves checkout sessions by that ID.
 - **Bachs payout destinations** must report `is_usable: true` before a payout
   is created. A pending-review destination raises a clear error instead of
   pretending a payout exists.
@@ -267,11 +268,13 @@ The checkout request model prepared for the unmounted route accepts this body:
 ```
 
 `amount_minor: 5000` represents GHS 50.00. When the route is mounted and the
-provider call succeeds, the normalized checkout result has these fields:
+provider call succeeds, the normalized checkout result keeps application and
+provider identifiers separate:
 
 ```json
 {
-  "reference": "provider-or-checkout-reference",
+  "reference": "PAY-456",
+  "provider_reference": "provider-or-checkout-reference",
   "provider": "paystack",
   "status": "pending",
   "checkout_url": "https://provider-hosted-checkout.example",
@@ -279,8 +282,13 @@ provider call succeeds, the normalized checkout result has these fields:
 }
 ```
 
-The exact reference and URL are supplied by the selected provider; this is an
-illustrative normalized shape, not a live endpoint response.
+`reference` is the caller's application correlation ID (supplied or generated
+by RailSwitch before the provider call). `provider_reference` is the provider
+identifier required for later verification. These may have the same value for
+Paystack, but are intentionally separate concepts. Verification accepts a
+`provider_reference`; without persistence, RailSwitch cannot recover the
+caller reference during verification. A future transaction record will retain
+both values together with metadata and the raw provider response.
 
 ## Running tests
 

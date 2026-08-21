@@ -7,9 +7,11 @@ from app.payments.contracts import (
     CheckoutResponse,
     DisbursementRequest,
     DisbursementResponse,
-    PaymentProvider as PaymentProviderContract,
     VerificationRequest,
     VerificationResponse,
+)
+from app.payments.contracts import (
+    PaymentProvider as PaymentProviderContract,
 )
 from app.payments.enums import (
     CollectionMethod,
@@ -35,6 +37,7 @@ class StubStripeClient(StripeClient):
     def __init__(self) -> None:
         super().__init__("stripe-key")
         self.payment_intent_called = False
+        self.checkout_session_id: str | None = None
 
     async def create_checkout_session(
         self, payload: StripeCheckoutRequest
@@ -49,6 +52,7 @@ class StubStripeClient(StripeClient):
         }
 
     async def retrieve_checkout_session(self, session_id: str) -> StripeCheckoutSession:
+        self.checkout_session_id = session_id
         return {
             "id": session_id,
             "url": "https://checkout.stripe.test",
@@ -89,7 +93,9 @@ class StubPaymentProvider(PaymentProviderContract):
 
 def test_factory_routes_us_and_canada_to_stripe() -> None:
     stripe = StubPaymentProvider()
-    factory = PaymentProviderFactory(StubPaymentProvider(), StubPaymentProvider(), stripe)
+    factory = PaymentProviderFactory(
+        StubPaymentProvider(), StubPaymentProvider(), stripe
+    )
     assert factory.get_provider(Country.UNITED_STATES) is stripe
     assert factory.get_provider(Country.CANADA) is stripe
 
@@ -132,11 +138,13 @@ def test_stripe_maps_caller_reference_and_metadata() -> None:
 def test_stripe_provider_collects_and_verifies_by_operation() -> None:
     client = StubStripeClient()
     provider = StripeProvider(client, "https://success", "https://cancel")
-    checkout = asyncio.run(provider.collect(request()))
+    checkout_request = request()
+    checkout_request.reference = "PAY-456"
+    checkout = asyncio.run(provider.collect(checkout_request))
     verification = asyncio.run(
         provider.verify(
             VerificationRequest(
-                checkout.reference,
+                checkout.provider_reference,
                 PaymentProvider.STRIPE,
                 Country.UNITED_STATES,
                 PaymentOperation.COLLECTION,
@@ -154,5 +162,8 @@ def test_stripe_provider_collects_and_verifies_by_operation() -> None:
         )
     )
     assert checkout.status is PaymentStatus.PENDING
+    assert checkout.reference == "PAY-456"
+    assert checkout.reference != checkout.provider_reference
     assert verification.status is PaymentStatus.SUCCESS and client.payment_intent_called
+    assert client.checkout_session_id == checkout.provider_reference
     assert payout.status is PaymentStatus.SUCCESS and payout.currency is Currency.CAD

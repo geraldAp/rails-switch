@@ -63,6 +63,7 @@ class PaystackProvider(PaymentProvider):
         recipient_code = recipient_response["data"]["recipient_code"]
 
         reference = self._reference_for(request.reference)
+        request = replace(request, reference=reference)
 
         transfer_payload = PaystackMapper.to_transfer_request(
             request=request,
@@ -88,7 +89,7 @@ class PaystackProvider(PaymentProvider):
     ) -> VerificationResponse:
         response = await self.client.verify_transaction(
             country=request.country,
-            reference=request.reference,
+            reference=request.provider_reference,
         )
 
         return PaystackMapper.from_verification_response(

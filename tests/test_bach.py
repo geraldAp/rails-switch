@@ -197,11 +197,13 @@ def test_mapper_normalizes_payout_statuses(
 
 def test_provider_uses_checkout_id_for_verification() -> None:
     provider = BachProvider(StubBachClient())
-    checkout = asyncio.run(provider.collect(checkout_request([CollectionMethod.CARD])))
+    request = checkout_request([CollectionMethod.CARD])
+    request.reference = "PAY-456"
+    checkout = asyncio.run(provider.collect(request))
     verification = asyncio.run(
         provider.verify(
             VerificationRequest(
-                reference=checkout.reference,
+                provider_reference=checkout.provider_reference,
                 provider=PaymentProvider.BACH,
                 country=Country.NIGERIA,
                 operation=PaymentOperation.COLLECTION,
@@ -209,7 +211,9 @@ def test_provider_uses_checkout_id_for_verification() -> None:
         )
     )
 
-    assert checkout.reference == "chk_123"
+    assert checkout.reference == "PAY-456"
+    assert checkout.provider_reference == "chk_123"
+    assert checkout.reference != checkout.provider_reference
     assert checkout.status is PaymentStatus.PENDING
     assert verification.status is PaymentStatus.SUCCESS
     assert verification.amount_minor == 5_000
@@ -230,6 +234,7 @@ def test_provider_uses_one_reference_for_payout_and_idempotency() -> None:
 
     assert response.status is PaymentStatus.PENDING
     assert response.reference == client.payout_reference
+    assert response.provider_reference == client.payout_reference
 
 
 def test_client_sends_payout_idempotency_header(

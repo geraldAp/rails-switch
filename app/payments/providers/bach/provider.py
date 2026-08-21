@@ -21,10 +21,11 @@ class BachProvider(PaymentProvider):
     # ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
 
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
-        request = replace(request, reference=self._reference_for(request.reference))
+        reference = self._reference_for(request.reference)
+        request = replace(request, reference=reference)
         payload = BachMapper.to_checkout_request(
             request=request,
-            reference=request.reference,
+            reference=reference,
         )
         response = await self.client.create_checkout(payload)
         return BachMapper.from_checkout_response(response, request)
@@ -42,6 +43,7 @@ class BachProvider(PaymentProvider):
             )
 
         reference = self._reference_for(request.reference)
+        request = replace(request, reference=reference)
         payout = await self.client.create_payout(
             payload=BachMapper.to_payout_request(
                 request=request,
@@ -55,7 +57,7 @@ class BachProvider(PaymentProvider):
     # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
 
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
-        response = await self.client.retrieve_checkout(request.reference)
+        response = await self.client.retrieve_checkout(request.provider_reference)
         return BachMapper.from_verification_response(response)
 
     # ── PRIVATE HELPERS ────────────────────────────────────────────────
