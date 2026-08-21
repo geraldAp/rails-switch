@@ -1,5 +1,8 @@
+from typing import cast
+
 import httpx2
 
+from app.payments.enums import Country
 from app.payments.providers.paystack.types import (
     PaystackCheckoutRequest,
     PaystackCheckoutResponse,
@@ -14,74 +17,91 @@ from app.payments.providers.paystack.types import (
 class PaystackClient:
     def __init__(
         self,
-        secret_key: str,
+        secrets: dict[Country, str],
         base_url: str = "https://api.paystack.co",
     ):
-        self.secret_key = secret_key
+        self.secrets = secrets
         self.base_url = base_url
 
-    @property
-    def headers(self) -> dict[str, str]:
+    def _get_secret_key(self, country: Country) -> str:
+        try:
+            return self.secrets[country]
+        except KeyError as error:
+            raise ValueError(
+                f"Paystack is not configured for country {country.value}"
+            ) from error
+
+    def _get_headers(self, country: Country) -> dict[str, str]:
         return {
-            "Authorization": f"Bearer {self.secret_key}",
+            "Authorization": f"Bearer {self._get_secret_key(country)}",
             "Content-Type": "application/json",
         }
 
+    # ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
+
     async def initialize_checkout(
         self,
+        country: Country,
         payload: PaystackCheckoutRequest,
     ) -> PaystackCheckoutResponse:
         async with httpx2.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/transaction/initialize",
-                headers=self.headers,
+                headers=self._get_headers(country),
                 json=payload,
             )
 
             response.raise_for_status()
 
-            return response.json()
+            return cast(PaystackCheckoutResponse, response.json())
+
+    # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
 
     async def verify_transaction(
         self,
+        country: Country,
         reference: str,
     ) -> PaystackVerificationResponse:
         async with httpx2.AsyncClient() as client:
             response = await client.get(
                 f"{self.base_url}/transaction/verify/{reference}",
-                headers=self.headers,
+                headers=self._get_headers(country),
             )
 
             response.raise_for_status()
 
-            return response.json()
+            return cast(PaystackVerificationResponse, response.json())
+
+    # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
 
     async def create_transfer_recipient(
         self,
+        country: Country,
         payload: PaystackTransferRecipientRequest,
     ) -> PaystackTransferRecipientResponse:
         async with httpx2.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/transferrecipient",
-                headers=self.headers,
+                headers=self._get_headers(country),
                 json=payload,
             )
 
             response.raise_for_status()
 
-            return response.json()
+            return cast(PaystackTransferRecipientResponse, response.json())
 
     async def initiate_transfer(
         self,
+        country: Country,
         payload: PaystackTransferRequest,
     ) -> PaystackTransferResponse:
         async with httpx2.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/transfer",
-                headers=self.headers,
+                headers=self._get_headers(country),
                 json=payload,
             )
 
             response.raise_for_status()
 
-            return response.json()
+            return cast(PaystackTransferResponse, response.json())

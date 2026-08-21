@@ -1,6 +1,8 @@
 from app.payments.contracts import PaymentProvider
 from app.payments.enums import (
     Country,
+)
+from app.payments.enums import (
     PaymentProvider as Provider,
 )
 
@@ -11,11 +13,8 @@ class PaymentProviderFactory:
         paystack: PaymentProvider,
         bach: PaymentProvider,
     ):
-        self.providers: dict[tuple[Provider, Country], PaymentProvider] = {
-            (Provider.PAYSTACK, Country.GHANA): paystack,
-            (Provider.PAYSTACK, Country.SOUTH_AFRICA): paystack,
-            (Provider.BACH, Country.NIGERIA): bach,
-        }
+        self.paystack = paystack
+        self.bach = bach
 
     def get_provider(
         self,
@@ -25,14 +24,15 @@ class PaymentProviderFactory:
         if provider is None:
             provider = self._get_default_provider(country)
 
-        key = (provider, country)
+        match provider:
+            case Provider.PAYSTACK:
+                return self.paystack
 
-        if key not in self.providers:
-            raise ValueError(
-                f"Provider {provider} is not configured for {country}"
-            )
+            case Provider.BACH:
+                return self.bach
 
-        return self.providers[key]
+            case _:
+                raise ValueError(f"Provider {provider} is not configured")
 
     def _get_default_provider(
         self,
@@ -44,3 +44,6 @@ class PaymentProviderFactory:
 
             case Country.NIGERIA:
                 return Provider.BACH
+
+            case _:
+                raise ValueError(f"No default provider is configured for {country}")
