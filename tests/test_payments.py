@@ -15,6 +15,7 @@ from app.payments.enums import (
     Country,
     Currency,
     DisbursementMethod,
+    PaymentOperation,
     PaymentStatus,
 )
 from app.payments.enums import (
@@ -88,6 +89,7 @@ def test_factory_selects_one_provider_implementation_per_provider() -> None:
     factory = PaymentProviderFactory(
         paystack=paystack,
         bach=bach,
+        stripe=StubProvider(),
     )
 
     assert factory.get_provider(Country.GHANA) is paystack
@@ -102,9 +104,15 @@ def test_verify_uses_requested_provider_and_country() -> None:
         PaymentProviderFactory(
             paystack=paystack,
             bach=StubProvider(),
+            stripe=StubProvider(),
         )
     )
-    request = VerificationRequest("reference", Provider.PAYSTACK, Country.SOUTH_AFRICA)
+    request = VerificationRequest(
+        "reference",
+        Provider.PAYSTACK,
+        Country.SOUTH_AFRICA,
+        PaymentOperation.COLLECTION,
+    )
 
     assert asyncio.run(service.verify(request)) is request
 

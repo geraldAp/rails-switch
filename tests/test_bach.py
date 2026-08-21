@@ -15,6 +15,7 @@ from app.payments.enums import (
     Country,
     Currency,
     DisbursementMethod,
+    PaymentOperation,
     PaymentProvider,
     PaymentStatus,
 )
@@ -187,6 +188,7 @@ def test_provider_uses_checkout_id_for_verification() -> None:
                 reference=checkout.reference,
                 provider=PaymentProvider.BACH,
                 country=Country.NIGERIA,
+                operation=PaymentOperation.COLLECTION,
             )
         )
     )
@@ -266,6 +268,7 @@ def test_dependencies_build_all_providers(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(settings, "paystack_gh_secret_key", "ghana-key")
     monkeypatch.setattr(settings, "paystack_za_secret_key", "south-africa-key")
     monkeypatch.setattr(settings, "bach_api_key", "bach-key")
+    monkeypatch.setattr(settings, "stripe_secret_key", "stripe-key")
 
     service = build_payment_service()
 
