@@ -145,7 +145,8 @@ app/
         ├── paystack/           # Paystack types, mapper, client, provider
         └── bach/               # Bachs types, mapper, client, provider
 tests/
-├── test_payments.py            # Factory, Paystack, and service coverage
+├── test_payment_service.py     # Factory and service orchestration coverage
+├── test_paystack.py            # Paystack mapping, client, and provider coverage
 └── test_bach.py                # Bachs mapping, client, provider, wiring tests
 ```
 
