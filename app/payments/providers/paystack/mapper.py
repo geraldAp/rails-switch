@@ -10,8 +10,10 @@ from app.payments.enums import (
     Country,
     Currency,
     DisbursementMethod,
-    PaymentProvider as Provider,
     PaymentStatus,
+)
+from app.payments.enums import (
+    PaymentProvider as Provider,
 )
 from app.payments.providers.paystack.types import (
     PaystackChannel,

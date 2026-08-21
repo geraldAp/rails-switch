@@ -5,6 +5,9 @@ class Settings(BaseSettings):
     app_name: str = "RailSwitch"
     environment: str = "development"
     database_url: str = "sqlite+aiosqlite:///./railswitch.db"
+    paystack_gh_secret_key: str | None = None
+    paystack_za_secret_key: str | None = None
+    paystack_callback_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -14,4 +17,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
