@@ -366,8 +366,8 @@ or update tests, and open a pull request. Provider contributions should follow
 the existing client/mapper/provider/types arrangement and keep the shared
 service and factory small.
 
-There is currently no separate `CONTRIBUTING.md`; use this README and the
-existing tests as the contribution guide.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the required provider test cases and
+contribution workflow.
 
 ## License
 

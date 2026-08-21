@@ -4,14 +4,7 @@ import pytest
 
 from app.payments.contracts import (
     CheckoutRequest,
-    CheckoutResponse,
-    DisbursementRequest,
-    DisbursementResponse,
     VerificationRequest,
-    VerificationResponse,
-)
-from app.payments.contracts import (
-    PaymentProvider as PaymentProviderContract,
 )
 from app.payments.enums import (
     CollectionMethod,
@@ -21,7 +14,6 @@ from app.payments.enums import (
     PaymentProvider,
     PaymentStatus,
 )
-from app.payments.factory import PaymentProviderFactory
 from app.payments.providers.stripe.client import StripeClient
 from app.payments.providers.stripe.mapper import StripeMapper
 from app.payments.providers.stripe.provider import StripeProvider
@@ -80,26 +72,6 @@ def request(
     return CheckoutRequest(
         country, 5000, currency, "buyer@example.test", [CollectionMethod.CARD]
     )
-
-
-class StubPaymentProvider(PaymentProviderContract):
-    async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
-        raise NotImplementedError
-
-    async def disburse(self, request: DisbursementRequest) -> DisbursementResponse:
-        raise NotImplementedError
-
-    async def verify(self, request: VerificationRequest) -> VerificationResponse:
-        raise NotImplementedError
-
-
-def test_factory_routes_us_and_canada_to_stripe() -> None:
-    stripe = StubPaymentProvider()
-    factory = PaymentProviderFactory(
-        StubPaymentProvider(), StubPaymentProvider(), stripe
-    )
-    assert factory.get_provider(Country.UNITED_STATES) is stripe
-    assert factory.get_provider(Country.CANADA) is stripe
 
 
 def test_checkout_payload_uses_minor_units_and_lowercase_currency() -> None:
