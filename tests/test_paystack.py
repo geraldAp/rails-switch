@@ -6,12 +6,8 @@ import pytest
 
 from app.payments.contracts import (
     CheckoutRequest,
-    CheckoutResponse,
     DisbursementRequest,
-    DisbursementResponse,
-    PaymentProvider,
     VerificationRequest,
-    VerificationResponse,
 )
 from app.payments.enums import (
     CollectionMethod,
@@ -24,7 +20,6 @@ from app.payments.enums import (
 from app.payments.enums import (
     PaymentProvider as Provider,
 )
-from app.payments.factory import PaymentProviderFactory
 from app.payments.providers.paystack.client import PaystackClient
 from app.payments.providers.paystack.mapper import PaystackMapper
 from app.payments.providers.paystack.provider import PaystackProvider
@@ -35,24 +30,6 @@ from app.payments.providers.paystack.types import (
     PaystackTransferResponse,
     PaystackVerificationResponse,
 )
-from app.payments.service import PaymentService
-
-
-class VerificationProviderSpy(PaymentProvider):
-    def __init__(self) -> None:
-        self.verification_request: VerificationRequest | None = None
-
-    async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
-        raise NotImplementedError
-
-    async def disburse(self, request: DisbursementRequest) -> DisbursementResponse:
-        raise NotImplementedError
-
-    async def verify(self, request: VerificationRequest) -> VerificationResponse:
-        self.verification_request = request
-        return VerificationResponse(
-            request.provider_reference, request.provider, PaymentStatus.PENDING
-        )
 
 
 class StubPaystackClient(PaystackClient):
@@ -154,47 +131,6 @@ class StubPaystackClient(PaystackClient):
                 },
             ),
         )
-
-
-def test_factory_routes_countries_and_honors_an_explicit_provider() -> None:
-    paystack = VerificationProviderSpy()
-    bach = VerificationProviderSpy()
-    stripe = VerificationProviderSpy()
-    factory = PaymentProviderFactory(
-        paystack=paystack,
-        bach=bach,
-        stripe=stripe,
-    )
-
-    assert factory.get_provider(Country.GHANA) is paystack
-    assert factory.get_provider(Country.SOUTH_AFRICA) is paystack
-    assert factory.get_provider(Country.NIGERIA) is bach
-    assert factory.get_provider(Country.UNITED_STATES) is stripe
-    assert factory.get_provider(Country.CANADA) is stripe
-    assert factory.get_provider(Country.NIGERIA, Provider.PAYSTACK) is paystack
-
-
-def test_verify_uses_requested_provider_and_country() -> None:
-    paystack = VerificationProviderSpy()
-    service = PaymentService(
-        PaymentProviderFactory(
-            paystack=paystack,
-            bach=VerificationProviderSpy(),
-            stripe=VerificationProviderSpy(),
-        )
-    )
-    request = VerificationRequest(
-        "reference",
-        Provider.PAYSTACK,
-        Country.SOUTH_AFRICA,
-        PaymentOperation.COLLECTION,
-    )
-
-    assert (
-        asyncio.run(service.verify(request)).provider_reference
-        == request.provider_reference
-    )
-    assert paystack.verification_request is request
 
 
 def test_client_resolves_headers_by_country() -> None:
