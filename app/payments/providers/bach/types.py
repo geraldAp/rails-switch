@@ -24,6 +24,7 @@ class BachCheckoutRequest(TypedDict):
     customer: BachCustomer
     reference: str
     payment_methods: NotRequired[list[BachPaymentMethod]]
+    metadata: NotRequired[dict[str, str]]
 
 
 class BachCheckoutResponse(TypedDict):
@@ -50,6 +51,7 @@ class BachPayoutDestinationRequest(TypedDict):
     account_number: str
     bank_code: str
     name: str
+    metadata: NotRequired[dict[str, str]]
 
 
 class BachPayoutDestinationResponse(TypedDict):
@@ -62,6 +64,7 @@ class BachPayoutRequest(TypedDict):
     destination: str
     amount: str
     reference: str
+    metadata: NotRequired[dict[str, str]]
 
 
 class BachPayoutResponse(TypedDict):

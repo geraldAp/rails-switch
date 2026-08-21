@@ -1,3 +1,4 @@
+from dataclasses import replace
 from uuid import uuid4
 
 from app.payments.contracts import (
@@ -28,6 +29,7 @@ class PaystackProvider(PaymentProvider):
         self,
         request: CheckoutRequest,
     ) -> CheckoutResponse:
+        request = self._with_reference(request)
         payload = PaystackMapper.to_checkout_request(
             request=request,
             callback_url=self.callback_url,
@@ -60,7 +62,7 @@ class PaystackProvider(PaymentProvider):
 
         recipient_code = recipient_response["data"]["recipient_code"]
 
-        reference = self._generate_reference()
+        reference = self._reference_for(request.reference)
 
         transfer_payload = PaystackMapper.to_transfer_request(
             request=request,
@@ -97,3 +99,9 @@ class PaystackProvider(PaymentProvider):
 
     def _generate_reference(self) -> str:
         return f"railswitch-{uuid4().hex}"
+
+    def _with_reference(self, request: CheckoutRequest) -> CheckoutRequest:
+        return replace(request, reference=self._reference_for(request.reference))
+
+    def _reference_for(self, caller_reference: str | None) -> str:
+        return caller_reference or self._generate_reference()
