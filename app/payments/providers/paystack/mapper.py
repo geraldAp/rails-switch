@@ -70,9 +70,7 @@ class PaystackMapper:
         request: DisbursementRequest,
     ) -> PaystackTransferRecipientRequest:
         if request.account_name is None:
-            raise ValueError(
-                "Account name is required for Paystack disbursements"
-            )
+            raise ValueError("Account name is required for Paystack disbursements")
 
         return {
             "type": PaystackMapper._get_recipient_type(request),
@@ -105,9 +103,7 @@ class PaystackMapper:
             reference=response["data"]["reference"],
             provider=Provider.PAYSTACK,
             method=request.method,
-            status=PaystackMapper._map_status(
-                response["data"]["status"]
-            ),
+            status=PaystackMapper._map_status(response["data"]["status"]),
         )
 
     @staticmethod
@@ -153,8 +149,7 @@ class PaystackMapper:
 
         if request.method == DisbursementMethod.DEBIT_CARD:
             raise ValueError(
-                "Paystack debit card disbursement is not supported "
-                "by this integration"
+                "Paystack debit card disbursement is not supported by this integration"
             )
 
         match request.country:

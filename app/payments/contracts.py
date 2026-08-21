@@ -1,6 +1,14 @@
-from app.payments.enums import CollectionMethod, Country, Currency, DisbursementMethod, PaymentProvider as Provider, PaymentStatus
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
+from app.payments.enums import (
+    CollectionMethod,
+    Country,
+    Currency,
+    DisbursementMethod,
+    PaymentStatus,
+)
+from app.payments.enums import PaymentProvider as Provider
 
 
 @dataclass(slots=True)
@@ -10,7 +18,6 @@ class CheckoutRequest:
     currency: Currency
     email: str
     payment_methods: list[CollectionMethod] | None = None
-    
 
 
 @dataclass(slots=True)
@@ -47,6 +54,7 @@ class VerificationRequest:
     provider: Provider
     country: Country
 
+
 @dataclass(slots=True)
 class VerificationResponse:
     reference: str
@@ -54,6 +62,7 @@ class VerificationResponse:
     status: PaymentStatus
     amount_minor: int | None = None
     currency: Currency | None = None
+
 
 class PaymentProvider(ABC):
     @abstractmethod

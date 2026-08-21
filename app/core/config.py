@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     paystack_gh_secret_key: str | None = None
     paystack_za_secret_key: str | None = None
     paystack_callback_url: str = ""
+    bach_api_key: str | None = None
+    bach_base_url: str = "https://sandbox-api.bachs.io"
 
     model_config = SettingsConfigDict(
         env_file=".env",
