@@ -1,3 +1,5 @@
+import json
+
 from app.payments.contracts import (
     CheckoutRequest,
     CheckoutResponse,
@@ -47,6 +49,10 @@ class PaystackMapper:
                 PaystackMapper._map_collection_method(method)
                 for method in request.payment_methods
             ]
+        if request.reference is not None:
+            payload["reference"] = request.reference
+        if request.metadata is not None:
+            payload["metadata"] = json.dumps(request.metadata)
 
         return payload
 
@@ -61,6 +67,7 @@ class PaystackMapper:
             status=PaymentStatus.PENDING,
             checkout_url=response["data"]["authorization_url"],
             payment_methods=request.payment_methods,
+            metadata=request.metadata,
         )
 
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
@@ -104,6 +111,7 @@ class PaystackMapper:
             provider=Provider.PAYSTACK,
             method=request.method,
             status=PaystackMapper._map_status(response["data"]["status"]),
+            metadata=request.metadata,
         )
 
     @staticmethod

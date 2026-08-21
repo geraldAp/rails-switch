@@ -42,6 +42,10 @@ class StripeMapper:
             payload["payment_method_types"] = [
                 StripeMapper._map_method(method) for method in request.payment_methods
             ]
+        if request.reference is not None:
+            payload["client_reference_id"] = request.reference
+        if request.metadata is not None:
+            payload["metadata"] = request.metadata
         return payload
 
     @staticmethod
@@ -54,6 +58,7 @@ class StripeMapper:
             PaymentStatus.PENDING,
             response["url"],
             request.payment_methods,
+            request.metadata,
         )
 
     @staticmethod

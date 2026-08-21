@@ -6,8 +6,11 @@ import pytest
 
 from app.payments.contracts import (
     CheckoutRequest,
+    CheckoutResponse,
     DisbursementRequest,
+    DisbursementResponse,
     PaymentProvider,
+    VerificationResponse,
     VerificationRequest,
 )
 from app.payments.enums import (
@@ -35,14 +38,14 @@ from app.payments.service import PaymentService
 
 
 class StubProvider(PaymentProvider):
-    async def collect(self, request):
+    async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
         raise NotImplementedError
 
-    async def disburse(self, request):
+    async def disburse(self, request: DisbursementRequest) -> DisbursementResponse:
         raise NotImplementedError
 
-    async def verify(self, request):
-        return request
+    async def verify(self, request: VerificationRequest) -> VerificationResponse:
+        return VerificationResponse(request.reference, request.provider, PaymentStatus.PENDING)
 
 
 class StubPaystackClient(PaystackClient):
@@ -57,11 +60,11 @@ class StubPaystackClient(PaystackClient):
     ) -> PaystackTransferRecipientResponse:
         return cast(
             PaystackTransferRecipientResponse,
-            {
+            cast(object, {
                 "status": True,
                 "message": "ok",
                 "data": {"recipient_code": "RCP_1"},
-            },
+            }),
         )
 
     async def initiate_transfer(
@@ -72,14 +75,14 @@ class StubPaystackClient(PaystackClient):
         self.transfer_reference = payload["reference"]
         return cast(
             PaystackTransferResponse,
-            {
+            cast(object, {
                 "status": True,
                 "message": "ok",
                 "data": {
                     "reference": payload["reference"],
                     "status": "pending",
                 },
-            },
+            }),
         )
 
 
@@ -114,7 +117,7 @@ def test_verify_uses_requested_provider_and_country() -> None:
         PaymentOperation.COLLECTION,
     )
 
-    assert asyncio.run(service.verify(request)) is request
+    assert asyncio.run(service.verify(request)).reference == request.reference
 
 
 def test_client_resolves_headers_by_country() -> None:
@@ -190,6 +193,23 @@ def test_checkout_response_starts_pending() -> None:
     )
 
     assert response.status is PaymentStatus.PENDING
+
+
+def test_paystack_preserves_caller_reference_and_metadata_in_payload() -> None:
+    payload = PaystackMapper.to_checkout_request(
+        CheckoutRequest(
+            Country.GHANA,
+            100,
+            Currency.GHS,
+            "ada@example.test",
+            reference="ORD-123",
+            metadata={"order_id": "ORD-123"},
+        ),
+        "https://example.test",
+    )
+
+    assert payload.get("reference") == "ORD-123"
+    assert payload.get("metadata") == '{"order_id": "ORD-123"}'
 
 
 def test_disbursement_generates_one_paystack_compatible_reference() -> None:

@@ -8,6 +8,8 @@ class StripeCheckoutRequest(TypedDict):
     cancel_url: str
     payment_method_types: NotRequired[list[str]]
     line_items: list[dict[str, object]]
+    metadata: NotRequired[dict[str, str]]
+    client_reference_id: NotRequired[str]
 
 
 class StripeCheckoutSession(TypedDict):

@@ -48,6 +48,8 @@ class BachMapper:
                 BachMapper._map_collection_method(method)
                 for method in request.payment_methods
             ]
+        if request.metadata is not None:
+            payload["metadata"] = request.metadata
 
         return payload
 
@@ -64,6 +66,7 @@ class BachMapper:
             status=PaymentStatus.PENDING,
             checkout_url=response["checkout_url"],
             payment_methods=request.payment_methods,
+            metadata=request.metadata,
         )
 
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
@@ -79,12 +82,15 @@ class BachMapper:
         if request.account_name is None:
             raise ValueError("Account name is required for Bachs bank payouts")
 
-        return {
+        payload: BachPayoutDestinationRequest = {
             "currency": request.currency.value,
             "account_number": request.account_number,
             "bank_code": request.bank_code,
             "name": request.account_name,
         }
+        if request.metadata is not None:
+            payload["metadata"] = request.metadata
+        return payload
 
     @staticmethod
     def to_payout_request(
@@ -92,11 +98,14 @@ class BachMapper:
         destination_id: str,
         reference: str,
     ) -> BachPayoutRequest:
-        return {
+        payload: BachPayoutRequest = {
             "destination": destination_id,
             "amount": BachMapper.minor_to_decimal(request.amount_minor),
-            "reference": reference,
+            "reference": request.reference or reference,
         }
+        if request.metadata is not None:
+            payload["metadata"] = request.metadata
+        return payload
 
     @staticmethod
     def from_payout_response(
@@ -108,6 +117,7 @@ class BachMapper:
             provider=Provider.BACH,
             method=request.method,
             status=BachMapper._map_payout_status(response["status"]),
+            metadata=request.metadata,
         )
 
     @staticmethod

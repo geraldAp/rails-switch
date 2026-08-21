@@ -1,5 +1,5 @@
 import asyncio
-from typing import Self, cast
+from typing import Self
 
 import pytest
 
@@ -67,17 +67,14 @@ class StubBachClient(BachClient):
     async def create_checkout(
         self, payload: BachCheckoutRequest
     ) -> BachCheckoutResponse:
-        return cast(
-            BachCheckoutResponse,
-            {
-                "checkout_id": "chk_123",
-                "reference": payload["reference"],
-                "status": "open",
-                "amount": payload["pricing"]["amount"],
-                "currency": payload["pricing"]["currency"],
-                "checkout_url": "https://checkout.bachs.test/chk_123",
-            },
-        )
+        return {
+            "checkout_id": "chk_123",
+            "reference": payload["reference"],
+            "status": "open",
+            "amount": payload["pricing"]["amount"],
+            "currency": payload["pricing"]["currency"],
+            "checkout_url": "https://checkout.bachs.test/chk_123",
+        }
 
     async def retrieve_checkout(self, checkout_id: str) -> BachCheckoutDetails:
         return {
@@ -126,11 +123,30 @@ def test_mapper_maps_compatible_checkout_methods() -> None:
     )
 
     assert payload["pricing"]["amount"] == "50.00"
-    assert payload["payment_methods"] == ["card", "bank_transfer", "mobile_money"]
+    assert payload.get("payment_methods") == [
+        "card",
+        "bank_transfer",
+        "mobile_money",
+    ]
     with pytest.raises(ValueError, match="ussd"):
         BachMapper.to_checkout_request(
             checkout_request([CollectionMethod.USSD]), "railswitch-reference"
         )
+
+
+def test_bach_maps_optional_metadata_and_caller_reference() -> None:
+    request = checkout_request()
+    request.reference = "ORD-123"
+    request.metadata = {"order_id": "ORD-123"}
+    payload = BachMapper.to_checkout_request(request, request.reference)
+
+    assert payload.get("metadata") == {"order_id": "ORD-123"}
+    assert (
+        BachMapper.to_payout_request(
+            disbursement_request(), "pd_123", "railswitch-payout"
+        )["reference"]
+        == "railswitch-payout"
+    )
 
 
 @pytest.mark.parametrize(

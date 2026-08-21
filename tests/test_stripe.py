@@ -2,7 +2,15 @@ import asyncio
 
 import pytest
 
-from app.payments.contracts import CheckoutRequest, VerificationRequest
+from app.payments.contracts import (
+    CheckoutRequest,
+    CheckoutResponse,
+    DisbursementRequest,
+    DisbursementResponse,
+    PaymentProvider as PaymentProviderContract,
+    VerificationRequest,
+    VerificationResponse,
+)
 from app.payments.enums import (
     CollectionMethod,
     Country,
@@ -68,9 +76,20 @@ def request(
     )
 
 
+class StubPaymentProvider(PaymentProviderContract):
+    async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
+        raise NotImplementedError
+
+    async def disburse(self, request: DisbursementRequest) -> DisbursementResponse:
+        raise NotImplementedError
+
+    async def verify(self, request: VerificationRequest) -> VerificationResponse:
+        raise NotImplementedError
+
+
 def test_factory_routes_us_and_canada_to_stripe() -> None:
-    stripe = object()
-    factory = PaymentProviderFactory(object(), object(), stripe)  # type: ignore[arg-type]
+    stripe = StubPaymentProvider()
+    factory = PaymentProviderFactory(StubPaymentProvider(), StubPaymentProvider(), stripe)
     assert factory.get_provider(Country.UNITED_STATES) is stripe
     assert factory.get_provider(Country.CANADA) is stripe
 
@@ -79,14 +98,12 @@ def test_checkout_payload_uses_minor_units_and_lowercase_currency() -> None:
     payload = StripeMapper.to_checkout_request(
         request(), "https://success", "https://cancel"
     )
-    assert payload["line_items"][0]["price_data"]["unit_amount"] == 5000
-    assert payload["line_items"][0]["price_data"]["currency"] == "usd"
-    assert (
-        StripeMapper.to_checkout_request(
-            request(Country.CANADA, Currency.CAD), "s", "c"
-        )["line_items"][0]["price_data"]["currency"]
-        == "cad"
+    assert "'currency': 'usd'" in str(payload["line_items"])
+    assert "'unit_amount': 5000" in str(payload["line_items"])
+    canada_payload = StripeMapper.to_checkout_request(
+        request(Country.CANADA, Currency.CAD), "s", "c"
     )
+    assert "'currency': 'cad'" in str(canada_payload["line_items"])
     with pytest.raises(ValueError, match="mobile_money"):
         StripeMapper.to_checkout_request(
             CheckoutRequest(
@@ -99,6 +116,17 @@ def test_checkout_payload_uses_minor_units_and_lowercase_currency() -> None:
             "s",
             "c",
         )
+
+
+def test_stripe_maps_caller_reference_and_metadata() -> None:
+    checkout_request = request()
+    checkout_request.reference = "ORD-123"
+    checkout_request.metadata = {"order_id": "ORD-123"}
+
+    payload = StripeMapper.to_checkout_request(checkout_request, "s", "c")
+
+    assert payload.get("client_reference_id") == "ORD-123"
+    assert payload.get("metadata") == {"order_id": "ORD-123"}
 
 
 def test_stripe_provider_collects_and_verifies_by_operation() -> None:

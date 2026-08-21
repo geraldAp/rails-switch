@@ -1,3 +1,4 @@
+from dataclasses import replace
 from uuid import uuid4
 
 from app.payments.contracts import (
@@ -20,9 +21,10 @@ class BachProvider(PaymentProvider):
     # ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
 
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
+        request = replace(request, reference=self._reference_for(request.reference))
         payload = BachMapper.to_checkout_request(
             request=request,
-            reference=self._generate_reference(),
+            reference=request.reference,
         )
         response = await self.client.create_checkout(payload)
         return BachMapper.from_checkout_response(response, request)
@@ -39,7 +41,7 @@ class BachProvider(PaymentProvider):
                 f"{destination['id']} is not usable (status: {destination['status']})"
             )
 
-        reference = self._generate_reference()
+        reference = self._reference_for(request.reference)
         payout = await self.client.create_payout(
             payload=BachMapper.to_payout_request(
                 request=request,
@@ -60,3 +62,6 @@ class BachProvider(PaymentProvider):
 
     def _generate_reference(self) -> str:
         return f"railswitch-{uuid4().hex}"
+
+    def _reference_for(self, caller_reference: str | None) -> str:
+        return caller_reference or self._generate_reference()

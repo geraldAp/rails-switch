@@ -1,3 +1,6 @@
+from dataclasses import replace
+from uuid import uuid4
+
 from app.payments.contracts import (
     CheckoutRequest,
     CheckoutResponse,
@@ -19,6 +22,7 @@ class StripeProvider(PaymentProvider):
         self.cancel_url = cancel_url
 
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
+        request = replace(request, reference=self._reference_for(request.reference))
         response = await self.client.create_checkout_session(
             StripeMapper.to_checkout_request(request, self.success_url, self.cancel_url)
         )
@@ -41,3 +45,9 @@ class StripeProvider(PaymentProvider):
             else None
         )
         return StripeMapper.from_collection(session, payment_intent)
+
+    def _generate_reference(self) -> str:
+        return f"railswitch-{uuid4().hex}"
+
+    def _reference_for(self, caller_reference: str | None) -> str:
+        return caller_reference or self._generate_reference()

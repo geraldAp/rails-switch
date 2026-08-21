@@ -19,6 +19,8 @@ class CheckoutRequest:
     currency: Currency
     email: str
     payment_methods: list[CollectionMethod] | None = None
+    reference: str | None = None
+    metadata: dict[str, str] | None = None
 
 
 @dataclass(slots=True)
@@ -28,6 +30,7 @@ class CheckoutResponse:
     status: PaymentStatus
     checkout_url: str
     payment_methods: list[CollectionMethod] | None = None
+    metadata: dict[str, str] | None = None
 
 
 @dataclass(slots=True)
@@ -39,6 +42,8 @@ class DisbursementRequest:
     account_number: str
     bank_code: str
     account_name: str | None = None
+    reference: str | None = None
+    metadata: dict[str, str] | None = None
 
 
 @dataclass(slots=True)
@@ -47,6 +52,7 @@ class DisbursementResponse:
     provider: Provider
     method: DisbursementMethod
     status: PaymentStatus
+    metadata: dict[str, str] | None = None
 
 
 @dataclass(slots=True)
