@@ -29,6 +29,8 @@ class BachClient:
             "Content-Type": "application/json",
         }
 
+    # ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
+
     async def create_checkout(
         self, payload: BachCheckoutRequest
     ) -> BachCheckoutResponse:
@@ -41,6 +43,8 @@ class BachClient:
             response.raise_for_status()
             return cast(BachCheckoutResponse, response.json())
 
+    # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
+
     async def retrieve_checkout(self, checkout_id: str) -> BachCheckoutDetails:
         async with httpx2.AsyncClient() as client:
             response = await client.get(
@@ -49,6 +53,8 @@ class BachClient:
             )
             response.raise_for_status()
             return cast(BachCheckoutDetails, response.json())
+
+    # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
 
     async def create_payout_destination(
         self, payload: BachPayoutDestinationRequest

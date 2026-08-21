@@ -20,6 +20,7 @@ from app.payments.providers.bach.types import (
     BachCheckoutDetails,
     BachCheckoutRequest,
     BachCheckoutResponse,
+    BachPaymentMethod,
     BachPayoutDestinationRequest,
     BachPayoutRequest,
     BachPayoutResponse,
@@ -27,6 +28,8 @@ from app.payments.providers.bach.types import (
 
 
 class BachMapper:
+    # ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
+
     @staticmethod
     def to_checkout_request(
         request: CheckoutRequest, reference: str
@@ -63,6 +66,8 @@ class BachMapper:
             payment_methods=request.payment_methods,
         )
 
+    # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
+
     @staticmethod
     def to_payout_destination_request(
         request: DisbursementRequest,
@@ -94,18 +99,6 @@ class BachMapper:
         }
 
     @staticmethod
-    def from_verification_response(
-        response: BachCheckoutDetails,
-    ) -> VerificationResponse:
-        return VerificationResponse(
-            reference=response["checkout_id"],
-            provider=Provider.BACH,
-            status=BachMapper._map_payment_status(response.get("payment_status")),
-            amount_minor=BachMapper.decimal_to_minor(response["amount"]),
-            currency=Currency(response["currency"]),
-        )
-
-    @staticmethod
     def from_payout_response(
         response: BachPayoutResponse,
         request: DisbursementRequest,
@@ -115,6 +108,18 @@ class BachMapper:
             provider=Provider.BACH,
             method=request.method,
             status=BachMapper._map_payout_status(response["status"]),
+        )
+
+    @staticmethod
+    def from_verification_response(
+        response: BachCheckoutDetails,
+    ) -> VerificationResponse:
+        return VerificationResponse(
+            reference=response["checkout_id"],
+            provider=Provider.BACH,
+            status=BachMapper._map_payment_status(response.get("payment_status")),
+            amount_minor=BachMapper.decimal_to_minor(response["amount"]),
+            currency=Currency(response["currency"]),
         )
 
     @staticmethod
@@ -132,14 +137,14 @@ class BachMapper:
         return int(minor_amount)
 
     @staticmethod
-    def _map_collection_method(method: CollectionMethod) -> str:
+    def _map_collection_method(method: CollectionMethod) -> BachPaymentMethod:
         match method:
             case CollectionMethod.CARD:
-                return "card"
+                return BachPaymentMethod.CARD
             case CollectionMethod.BANK_TRANSFER:
-                return "bank_transfer"
+                return BachPaymentMethod.BANK_TRANSFER
             case CollectionMethod.MOBILE_MONEY:
-                return "mobile_money"
+                return BachPaymentMethod.MOBILE_MONEY
             case _:
                 raise ValueError(f"Bachs does not support {method.value} checkout")
 

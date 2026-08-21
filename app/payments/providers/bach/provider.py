@@ -17,6 +17,8 @@ class BachProvider(PaymentProvider):
     def __init__(self, client: BachClient) -> None:
         self.client = client
 
+    # ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
+
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
         payload = BachMapper.to_checkout_request(
             request=request,
@@ -24,6 +26,8 @@ class BachProvider(PaymentProvider):
         )
         response = await self.client.create_checkout(payload)
         return BachMapper.from_checkout_response(response, request)
+
+    # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
 
     async def disburse(self, request: DisbursementRequest) -> DisbursementResponse:
         destination = await self.client.create_payout_destination(
@@ -46,9 +50,13 @@ class BachProvider(PaymentProvider):
         )
         return BachMapper.from_payout_response(payout, request)
 
+    # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
+
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
         response = await self.client.retrieve_checkout(request.reference)
         return BachMapper.from_verification_response(response)
+
+    # ── PRIVATE HELPERS ────────────────────────────────────────────────
 
     def _generate_reference(self) -> str:
         return f"railswitch-{uuid4().hex}"

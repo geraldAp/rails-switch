@@ -1,6 +1,15 @@
+from enum import StrEnum
 from typing import NotRequired, TypedDict
 
 
+# ── ENUMS ──────────────────────────────────────────────────────────
+class BachPaymentMethod(StrEnum):
+    CARD = "card"
+    BANK_TRANSFER = "bank_transfer"
+    MOBILE_MONEY = "mobile_money"
+
+
+# ── COLLECTIONS (CHECKOUT) ─────────────────────────────────────────
 class BachPricing(TypedDict):
     currency: str
     amount: str
@@ -14,7 +23,7 @@ class BachCheckoutRequest(TypedDict):
     pricing: BachPricing
     customer: BachCustomer
     reference: str
-    payment_methods: NotRequired[list[str]]
+    payment_methods: NotRequired[list[BachPaymentMethod]]
 
 
 class BachCheckoutResponse(TypedDict):
@@ -26,6 +35,7 @@ class BachCheckoutResponse(TypedDict):
     checkout_url: str
 
 
+# ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
 class BachCheckoutDetails(TypedDict):
     checkout_id: str
     status: str
@@ -34,6 +44,7 @@ class BachCheckoutDetails(TypedDict):
     payment_status: NotRequired[str | None]
 
 
+# ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
 class BachPayoutDestinationRequest(TypedDict):
     currency: str
     account_number: str
