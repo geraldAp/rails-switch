@@ -38,6 +38,7 @@ class StubStripeClient(StripeClient):
         super().__init__("stripe-key")
         self.payment_intent_called = False
         self.checkout_session_id: str | None = None
+        self.payout_id: str | None = None
 
     async def create_checkout_session(
         self, payload: StripeCheckoutRequest
@@ -69,6 +70,7 @@ class StubStripeClient(StripeClient):
         return {"status": "succeeded", "amount": 5000, "currency": "usd"}
 
     async def retrieve_payout(self, payout_id: str) -> StripePayout:
+        self.payout_id = payout_id
         return {"id": payout_id, "status": "paid", "amount": 5000, "currency": "cad"}
 
 
@@ -167,3 +169,4 @@ def test_stripe_provider_collects_and_verifies_by_operation() -> None:
     assert verification.status is PaymentStatus.SUCCESS and client.payment_intent_called
     assert client.checkout_session_id == checkout.provider_reference
     assert payout.status is PaymentStatus.SUCCESS and payout.currency is Currency.CAD
+    assert client.payout_id == "po_123"

@@ -134,6 +134,20 @@ class PaystackMapper:
         )
 
     @staticmethod
+    def from_transfer_verification_response(
+        response: PaystackTransferResponse,
+    ) -> VerificationResponse:
+        data = response["data"]
+        return VerificationResponse(
+            provider_reference=data["reference"],
+            provider=Provider.PAYSTACK,
+            status=PaystackMapper._map_status(data["status"]),
+            amount_minor=data["amount"],
+            currency=Currency(data["currency"]),
+            raw_response=dict(response),
+        )
+
+    @staticmethod
     def _map_collection_method(
         method: CollectionMethod,
     ) -> PaystackChannel:
