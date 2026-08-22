@@ -1,7 +1,7 @@
 from dataclasses import replace
 from uuid import uuid4
 
-from app.payments.contracts import (
+from ...contracts import (
     CheckoutRequest,
     CheckoutResponse,
     DisbursementRequest,
@@ -10,9 +10,9 @@ from app.payments.contracts import (
     VerificationRequest,
     VerificationResponse,
 )
-from app.payments.enums import PaymentOperation
-from app.payments.providers.bach.client import BachClient
-from app.payments.providers.bach.mapper import BachMapper
+from ...enums import PaymentOperation
+from .client import BachClient
+from .mapper import BachMapper
 
 
 class BachProvider(PaymentProvider):

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from app.payments.enums import (
+from .enums import (
     CollectionMethod,
     Country,
     Currency,
@@ -9,7 +9,7 @@ from app.payments.enums import (
     PaymentOperation,
     PaymentStatus,
 )
-from app.payments.enums import PaymentProvider as Provider
+from .enums import PaymentProvider as Provider
 
 
 @dataclass(slots=True)

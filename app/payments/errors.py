@@ -5,7 +5,7 @@ from typing import cast
 
 import httpx2
 
-from app.payments.enums import PaymentOperation, PaymentProvider
+from .enums import PaymentOperation, PaymentProvider
 
 
 class ProviderErrorCategory(StrEnum):

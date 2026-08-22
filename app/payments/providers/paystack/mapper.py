@@ -1,23 +1,23 @@
 import json
 
-from app.payments.contracts import (
+from ...contracts import (
     CheckoutRequest,
     CheckoutResponse,
     DisbursementRequest,
     DisbursementResponse,
     VerificationResponse,
 )
-from app.payments.enums import (
+from ...enums import (
     CollectionMethod,
     Country,
     Currency,
     DisbursementMethod,
     PaymentStatus,
 )
-from app.payments.enums import (
+from ...enums import (
     PaymentProvider as Provider,
 )
-from app.payments.providers.paystack.types import (
+from .types import (
     PaystackChannel,
     PaystackCheckoutRequest,
     PaystackCheckoutResponse,

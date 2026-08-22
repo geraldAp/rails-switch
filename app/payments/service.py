@@ -1,6 +1,6 @@
 # app/payments/service.py
 
-from app.payments.contracts import (
+from .contracts import (
     CheckoutRequest,
     CheckoutResponse,
     DisbursementRequest,
@@ -8,7 +8,7 @@ from app.payments.contracts import (
     VerificationRequest,
     VerificationResponse,
 )
-from app.payments.factory import PaymentProviderFactory
+from .factory import PaymentProviderFactory
 
 
 class PaymentService:
