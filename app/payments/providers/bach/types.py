@@ -17,13 +17,14 @@ class BachPricing(TypedDict):
 
 class BachCustomer(TypedDict):
     email: str
+    name: str
 
 
 class BachCheckoutRequest(TypedDict):
     pricing: BachPricing
     customer: BachCustomer
     reference: str
-    payment_methods: NotRequired[list[BachPaymentMethod]]
+    allowed_payment_method_types: NotRequired[list[BachPaymentMethod]]
     metadata: NotRequired[dict[str, str]]
 
 

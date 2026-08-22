@@ -2,13 +2,13 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+import httpx2
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.schemas.payments import CheckoutRequestBody
 from app.payments.contracts import CheckoutRequest, CheckoutResponse
 from app.payments.dependencies import get_payment_service
 from app.payments.service import PaymentService
-
 
 router = APIRouter(
     prefix="/payments",
@@ -29,7 +29,20 @@ async def checkout(
         amount_minor=body.amount_minor,
         currency=body.currency,
         email=str(body.email),
+        customer_name=body.customer_name,
         payment_methods=body.payment_methods,
     )
 
-    return await payment_service.collect(request)
+    try:
+        return await payment_service.collect(request)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except httpx2.HTTPStatusError as error:
+        try:
+            detail: object = error.response.json()
+        except ValueError:
+            detail = error.response.text
+        raise HTTPException(
+            status_code=error.response.status_code,
+            detail=detail,
+        ) from error

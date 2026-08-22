@@ -33,6 +33,7 @@ def test_payment_checkout_route_is_mounted() -> None:
                 "amount_minor": 5000,
                 "currency": "GHS",
                 "email": "buyer@example.com",
+                "customer_name": "Buyer Example",
                 "payment_methods": ["card"],
             },
         )

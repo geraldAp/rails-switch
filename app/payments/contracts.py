@@ -21,6 +21,7 @@ class CheckoutRequest:
     payment_methods: list[CollectionMethod] | None = None
     reference: str | None = None
     metadata: dict[str, str] | None = None
+    customer_name: str | None = None
 
 
 @dataclass(slots=True)

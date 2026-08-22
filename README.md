@@ -215,6 +215,9 @@ PAYSTACK_GH_SECRET_KEY=
 PAYSTACK_ZA_SECRET_KEY=
 PAYSTACK_CALLBACK_URL=
 BACH_API_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_SUCCESS_URL=http://127.0.0.1:8000/docs?checkout_session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=http://127.0.0.1:8000/docs?checkout=cancelled
 ```
 
 | Variable | Required for payment flows | Notes |
@@ -224,6 +227,9 @@ BACH_API_KEY=
 | `PAYSTACK_CALLBACK_URL` | Yes in practice for Paystack checkout | Its code default is an empty string, but a real checkout should use a valid callback URL. |
 | `BACH_API_KEY` | Yes | Bachs bearer key. |
 | `BACH_BASE_URL` | No | Defaults to `https://sandbox-api.bachs.io`. Keep sandbox keys with the sandbox URL. |
+| `STRIPE_SECRET_KEY` | Yes for Stripe | Stripe secret key for the selected mode. |
+| `STRIPE_SUCCESS_URL` | Yes for Stripe Checkout | Absolute URL to send the customer to after a successful payment. |
+| `STRIPE_CANCEL_URL` | Yes for Stripe Checkout | Absolute URL to send the customer to after they cancel checkout. |
 | `APP_NAME` | No | Defaults to `RailSwitch`. |
 | `ENVIRONMENT` | No | Defaults to `development`. |
 | `DATABASE_URL` | No | Defaults to `sqlite+aiosqlite:///./railswitch.db`. |
@@ -264,6 +270,7 @@ The checkout request model prepared for the unmounted route accepts this body:
   "amount_minor": 5000,
   "currency": "GHS",
   "email": "customer@example.com",
+  "customer_name": "Customer Example",
   "payment_methods": ["card", "mobile_money"]
 }
 ```
@@ -290,6 +297,9 @@ Paystack, but are intentionally separate concepts. Verification accepts a
 `provider_reference`; without persistence, RailSwitch cannot recover the
 caller reference during verification. A future transaction record will retain
 both values together with metadata and the raw provider response.
+
+`customer_name` is required for Bachs checkout sessions because Bachs requires
+both a customer email and name. Other providers currently ignore it.
 
 ## Running tests
 

@@ -22,6 +22,7 @@ class StripeProvider(PaymentProvider):
         self.cancel_url = cancel_url
 
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
+        self._validate_checkout_urls()
         request = replace(request, reference=self._reference_for(request.reference))
         response = await self.client.create_checkout_session(
             StripeMapper.to_checkout_request(request, self.success_url, self.cancel_url)
@@ -53,3 +54,18 @@ class StripeProvider(PaymentProvider):
 
     def _reference_for(self, caller_reference: str | None) -> str:
         return caller_reference or self._generate_reference()
+
+    def _validate_checkout_urls(self) -> None:
+        missing = [
+            name
+            for name, value in (
+                ("STRIPE_SUCCESS_URL", self.success_url),
+                ("STRIPE_CANCEL_URL", self.cancel_url),
+            )
+            if not value.strip()
+        ]
+        if missing:
+            raise ValueError(
+                "Missing Stripe Checkout redirect URL configuration: "
+                + ", ".join(missing)
+            )
