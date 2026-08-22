@@ -301,6 +301,43 @@ both values together with metadata and the raw provider response.
 `customer_name` is required for Bachs checkout sessions because Bachs requires
 both a customer email and name. Other providers currently ignore it.
 
+## Provider error contract
+
+All provider clients normalize unsuccessful HTTP responses and network failures
+to a `PaymentProviderError`. HTTP routes return the same public shape without
+exposing the provider's raw response:
+
+```json
+{
+  "detail": {
+    "provider": "stripe",
+    "operation": "collection",
+    "category": "validation",
+    "code": "parameter_invalid_empty",
+    "message": "Stripe rejected the checkout request.",
+    "retryable": false
+  }
+}
+```
+
+The stable categories are `validation`, `authentication`, `forbidden`,
+`not_found`, `conflict`, `insufficient_funds`, `rate_limited`, `processor`,
+`provider_unavailable`, and `unknown`. `raw_response` stays internal for
+logging and future persistence.
+
+Provider adapters parse the officially documented error shapes:
+
+| Provider | Official error reference | Fields used by RailSwitch |
+| --- | --- | --- |
+| Stripe | [Error codes](https://docs.stripe.com/error-codes) | `error.code`, `error.message`, `error.type` |
+| Paystack | [Errors](https://paystack.com/docs/api/errors/) | `message`, `code`, `type`, `meta` |
+| Bachs | [Error reference](https://docs.bachs.io/api-reference/error-reference) | `detail`, `error_code`, `doc_url` |
+
+When adding a provider, use that provider's official error documentation to
+map its error code and status to a RailSwitch category. Add tests for its
+validation, authentication, not-found, conflict, rate-limit, server-error,
+and network-failure scenarios.
+
 ## Running tests
 
 ```bash

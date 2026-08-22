@@ -2,6 +2,8 @@ from typing import cast
 
 import httpx2
 
+from app.payments.enums import PaymentOperation, PaymentProvider
+from app.payments.errors import send_provider_request
 from app.payments.providers.bach.types import (
     BachCheckoutDetails,
     BachCheckoutRequest,
@@ -36,32 +38,41 @@ class BachClient:
         self, payload: BachCheckoutRequest
     ) -> BachCheckoutResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/v1/checkout-sessions",
-                headers=self.headers,
-                json=payload,
+            response = await send_provider_request(
+                client.post(
+                    f"{self.base_url}/v1/checkout-sessions",
+                    headers=self.headers,
+                    json=payload,
+                ),
+                provider=PaymentProvider.BACH,
+                operation=PaymentOperation.COLLECTION,
             )
-            response.raise_for_status()
             return cast(BachCheckoutResponse, response.json())
 
     # ── TRANSACTION FINDING (VERIFICATION) ─────────────────────────────
 
     async def retrieve_checkout(self, checkout_id: str) -> BachCheckoutDetails:
         async with httpx2.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/v1/checkout-sessions/{checkout_id}",
-                headers=self.headers,
+            response = await send_provider_request(
+                client.get(
+                    f"{self.base_url}/v1/checkout-sessions/{checkout_id}",
+                    headers=self.headers,
+                ),
+                provider=PaymentProvider.BACH,
+                operation=PaymentOperation.COLLECTION,
             )
-            response.raise_for_status()
             return cast(BachCheckoutDetails, response.json())
 
     async def get_payout(self, withdrawal_id: str) -> BachPayoutDetails:
         async with httpx2.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/v1/payouts/{withdrawal_id}",
-                headers=self.headers,
+            response = await send_provider_request(
+                client.get(
+                    f"{self.base_url}/v1/payouts/{withdrawal_id}",
+                    headers=self.headers,
+                ),
+                provider=PaymentProvider.BACH,
+                operation=PaymentOperation.DISBURSEMENT,
             )
-            response.raise_for_status()
             return cast(BachPayoutDetails, response.json())
 
     # ── DISBURSEMENTS (TRANSFERS) ──────────────────────────────────────
@@ -70,12 +81,15 @@ class BachClient:
         self, payload: BachPayoutDestinationRequest
     ) -> BachPayoutDestinationResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/v1/payouts/destinations",
-                headers=self.headers,
-                json=payload,
+            response = await send_provider_request(
+                client.post(
+                    f"{self.base_url}/v1/payouts/destinations",
+                    headers=self.headers,
+                    json=payload,
+                ),
+                provider=PaymentProvider.BACH,
+                operation=PaymentOperation.DISBURSEMENT,
             )
-            response.raise_for_status()
             return cast(BachPayoutDestinationResponse, response.json())
 
     async def create_payout(
@@ -85,10 +99,13 @@ class BachClient:
     ) -> BachPayoutResponse:
         headers = {**self.headers, "Idempotency-Key": idempotency_key}
         async with httpx2.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/v1/payouts",
-                headers=headers,
-                json=payload,
+            response = await send_provider_request(
+                client.post(
+                    f"{self.base_url}/v1/payouts",
+                    headers=headers,
+                    json=payload,
+                ),
+                provider=PaymentProvider.BACH,
+                operation=PaymentOperation.DISBURSEMENT,
             )
-            response.raise_for_status()
             return cast(BachPayoutResponse, response.json())

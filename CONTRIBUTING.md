@@ -22,6 +22,7 @@ Add focused tests for every operation the provider supports.
 | Provider | The provider calls the correct client operation, generates a reference before an initiation call when needed, and returns the normalized response. |
 | Verification | `PaymentOperation` selects the correct provider endpoint and `provider_reference` is the exact lookup value passed to that endpoint. |
 | Factory | Country routing or an explicit provider override, when the provider changes routing. |
+| Error handling | Provider-specific documented error payloads map to `PaymentProviderError`; cover validation, authentication, not found, conflict, rate limit, provider `5xx`, and a network failure. |
 
 For an initiation response, test both identifiers deliberately:
 
@@ -39,6 +40,10 @@ Use a small recording fake client in provider tests. It should capture the
 endpoint argument or payload that matters to the assertion. Avoid generic stub
 tests that merely return a fixed response without proving a provider-specific
 rule.
+
+For error tests, use the provider's official API error documentation as the
+source of the fixture shape and error codes. Do not copy one provider's error
+format into another adapter.
 
 ## Running checks
 

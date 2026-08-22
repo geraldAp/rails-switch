@@ -2,7 +2,8 @@ from typing import cast
 
 import httpx2
 
-from app.payments.enums import Country
+from app.payments.enums import Country, PaymentOperation, PaymentProvider
+from app.payments.errors import send_provider_request
 from app.payments.providers.paystack.types import (
     PaystackCheckoutRequest,
     PaystackCheckoutResponse,
@@ -45,13 +46,15 @@ class PaystackClient:
         payload: PaystackCheckoutRequest,
     ) -> PaystackCheckoutResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/transaction/initialize",
-                headers=self._get_headers(country),
-                json=payload,
+            response = await send_provider_request(
+                client.post(
+                    f"{self.base_url}/transaction/initialize",
+                    headers=self._get_headers(country),
+                    json=payload,
+                ),
+                provider=PaymentProvider.PAYSTACK,
+                operation=PaymentOperation.COLLECTION,
             )
-
-            response.raise_for_status()
 
             return cast(PaystackCheckoutResponse, response.json())
 
@@ -63,12 +66,14 @@ class PaystackClient:
         reference: str,
     ) -> PaystackVerificationResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/transaction/verify/{reference}",
-                headers=self._get_headers(country),
+            response = await send_provider_request(
+                client.get(
+                    f"{self.base_url}/transaction/verify/{reference}",
+                    headers=self._get_headers(country),
+                ),
+                provider=PaymentProvider.PAYSTACK,
+                operation=PaymentOperation.COLLECTION,
             )
-
-            response.raise_for_status()
 
             return cast(PaystackVerificationResponse, response.json())
 
@@ -78,12 +83,14 @@ class PaystackClient:
         reference: str,
     ) -> PaystackTransferResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/transfer/verify/{reference}",
-                headers=self._get_headers(country),
+            response = await send_provider_request(
+                client.get(
+                    f"{self.base_url}/transfer/verify/{reference}",
+                    headers=self._get_headers(country),
+                ),
+                provider=PaymentProvider.PAYSTACK,
+                operation=PaymentOperation.DISBURSEMENT,
             )
-
-            response.raise_for_status()
 
             return cast(PaystackTransferResponse, response.json())
 
@@ -95,13 +102,15 @@ class PaystackClient:
         payload: PaystackTransferRecipientRequest,
     ) -> PaystackTransferRecipientResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/transferrecipient",
-                headers=self._get_headers(country),
-                json=payload,
+            response = await send_provider_request(
+                client.post(
+                    f"{self.base_url}/transferrecipient",
+                    headers=self._get_headers(country),
+                    json=payload,
+                ),
+                provider=PaymentProvider.PAYSTACK,
+                operation=PaymentOperation.DISBURSEMENT,
             )
-
-            response.raise_for_status()
 
             return cast(PaystackTransferRecipientResponse, response.json())
 
@@ -111,12 +120,14 @@ class PaystackClient:
         payload: PaystackTransferRequest,
     ) -> PaystackTransferResponse:
         async with httpx2.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/transfer",
-                headers=self._get_headers(country),
-                json=payload,
+            response = await send_provider_request(
+                client.post(
+                    f"{self.base_url}/transfer",
+                    headers=self._get_headers(country),
+                    json=payload,
+                ),
+                provider=PaymentProvider.PAYSTACK,
+                operation=PaymentOperation.DISBURSEMENT,
             )
-
-            response.raise_for_status()
 
             return cast(PaystackTransferResponse, response.json())
