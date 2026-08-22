@@ -1,4 +1,5 @@
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
@@ -18,6 +19,18 @@ class ProviderErrorCategory(StrEnum):
     PROCESSOR = "processor"
     PROVIDER_UNAVAILABLE = "provider_unavailable"
     UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderErrorDetails:
+    """Provider-specific error fields extracted by a provider adapter."""
+
+    code: str | None = None
+    message: str | None = None
+    category: ProviderErrorCategory | None = None
+
+
+ProviderErrorParser = Callable[[dict[str, object]], ProviderErrorDetails]
 
 
 class PaymentProviderError(Exception):
@@ -82,6 +95,7 @@ async def send_provider_request(
     *,
     provider: PaymentProvider,
     operation: PaymentOperation,
+    error_parser: ProviderErrorParser,
 ) -> httpx2.Response:
     """Execute one provider request and normalize transport and HTTP failures."""
     try:
@@ -104,6 +118,7 @@ async def send_provider_request(
             provider=provider,
             operation=operation,
             response=error.response,
+            error_parser=error_parser,
         ) from error
     return response
 
@@ -113,22 +128,17 @@ def provider_error_from_response(
     provider: PaymentProvider,
     operation: PaymentOperation,
     response: httpx2.Response,
+    error_parser: ProviderErrorParser,
 ) -> PaymentProviderError:
     raw_response = _response_json(response)
-    provider_code, message, declared_type = _provider_error_fields(
-        provider, raw_response
-    )
-    category = _category_for(
-        status_code=response.status_code,
-        provider_code=provider_code,
-        declared_type=declared_type,
-    )
+    details = error_parser(raw_response)
+    category = details.category or _category_from_http_status(response.status_code)
     return PaymentProviderError(
         provider=provider,
         operation=operation,
         category=category,
-        message=message or "The payment provider rejected the request.",
-        provider_code=provider_code,
+        message=details.message or "The payment provider rejected the request.",
+        provider_code=details.code,
         status_code=response.status_code,
         retryable=category
         in {
@@ -151,55 +161,7 @@ def _response_json(response: httpx2.Response) -> dict[str, object]:
     }
 
 
-def _provider_error_fields(
-    provider: PaymentProvider, raw_response: dict[str, object]
-) -> tuple[str | None, str | None, str | None]:
-    if provider is PaymentProvider.STRIPE:
-        error = raw_response.get("error")
-        if isinstance(error, dict):
-            stripe_error = cast(dict[str, object], error)
-            return (
-                _string(stripe_error.get("code")),
-                _string(stripe_error.get("message")),
-                _string(stripe_error.get("type")),
-            )
-    if provider is PaymentProvider.BACH:
-        return (
-            _string(raw_response.get("error_code")),
-            _string(raw_response.get("detail")),
-            None,
-        )
-    return (
-        _string(raw_response.get("code")),
-        _string(raw_response.get("message")),
-        _string(raw_response.get("type")),
-    )
-
-
-def _category_for(
-    *,
-    status_code: int,
-    provider_code: str | None,
-    declared_type: str | None,
-) -> ProviderErrorCategory:
-    code = (provider_code or "").lower()
-
-    match code:
-        case "balance_insufficient" | "insufficient_funds" | "insufficient_balance":
-            return ProviderErrorCategory.INSUFFICIENT_FUNDS
-        case "rate_limit" | "too_many_requests":
-            return ProviderErrorCategory.RATE_LIMITED
-        case "unauthorized" | "api_key_expired":
-            return ProviderErrorCategory.AUTHENTICATION
-        case "forbidden" | "payouts_not_allowed":
-            return ProviderErrorCategory.FORBIDDEN
-        case "resource_missing" | "not_found":
-            return ProviderErrorCategory.NOT_FOUND
-        case "idempotency_key_in_use" | "conflict":
-            return ProviderErrorCategory.CONFLICT
-        case _:
-            pass
-
+def _category_from_http_status(status_code: int) -> ProviderErrorCategory:
     match status_code:
         case 429:
             return ProviderErrorCategory.RATE_LIMITED
@@ -214,22 +176,8 @@ def _category_for(
         case 409:
             return ProviderErrorCategory.CONFLICT
         case _:
-            pass
-
-    match declared_type:
-        case "processor_error":
-            return ProviderErrorCategory.PROCESSOR
-        case "validation_error":
-            return ProviderErrorCategory.VALIDATION
-        case _:
-            pass
-
-    return (
-        ProviderErrorCategory.VALIDATION
-        if status_code in {400, 422}
-        else ProviderErrorCategory.UNKNOWN
-    )
-
-
-def _string(value: object) -> str | None:
-    return value if isinstance(value, str) else None
+            return (
+                ProviderErrorCategory.VALIDATION
+                if status_code in {400, 422}
+                else ProviderErrorCategory.UNKNOWN
+            )

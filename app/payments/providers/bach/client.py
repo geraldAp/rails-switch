@@ -4,6 +4,7 @@ import httpx2
 
 from app.payments.enums import PaymentOperation, PaymentProvider
 from app.payments.errors import send_provider_request
+from app.payments.providers.bach.errors import parse_error_details
 from app.payments.providers.bach.types import (
     BachCheckoutDetails,
     BachCheckoutRequest,
@@ -17,6 +18,9 @@ from app.payments.providers.bach.types import (
 
 
 class BachClient:
+    api_key: str
+    base_url: str
+
     def __init__(
         self,
         api_key: str,
@@ -46,6 +50,7 @@ class BachClient:
                 ),
                 provider=PaymentProvider.BACH,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
             return cast(BachCheckoutResponse, response.json())
 
@@ -60,6 +65,7 @@ class BachClient:
                 ),
                 provider=PaymentProvider.BACH,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
             return cast(BachCheckoutDetails, response.json())
 
@@ -72,6 +78,7 @@ class BachClient:
                 ),
                 provider=PaymentProvider.BACH,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
             return cast(BachPayoutDetails, response.json())
 
@@ -89,6 +96,7 @@ class BachClient:
                 ),
                 provider=PaymentProvider.BACH,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
             return cast(BachPayoutDestinationResponse, response.json())
 
@@ -107,5 +115,6 @@ class BachClient:
                 ),
                 provider=PaymentProvider.BACH,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
             return cast(BachPayoutResponse, response.json())
