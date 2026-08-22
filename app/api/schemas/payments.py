@@ -8,9 +8,9 @@ class CheckoutRequestBody(BaseModel):
     amount_minor: int
     currency: Currency
     email: EmailStr
+    customer_name: str | None = None
     payment_methods: list[CollectionMethod] | None = None
-    
-    
+
 
 class CheckoutResponseBody(BaseModel):
-    checkout_url: str    
+    checkout_url: str

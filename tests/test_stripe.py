@@ -142,3 +142,10 @@ def test_stripe_provider_collects_and_verifies_by_operation() -> None:
     assert client.checkout_session_id == checkout.provider_reference
     assert payout.status is PaymentStatus.SUCCESS and payout.currency is Currency.CAD
     assert client.payout_id == "po_123"
+
+
+def test_stripe_requires_non_empty_checkout_redirect_urls() -> None:
+    provider = StripeProvider(StubStripeClient(), "", "https://example.test/cancel")
+
+    with pytest.raises(ValueError, match="STRIPE_SUCCESS_URL"):
+        asyncio.run(provider.collect(request()))

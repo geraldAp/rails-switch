@@ -35,17 +35,20 @@ class BachMapper:
     def to_checkout_request(
         request: CheckoutRequest, reference: str
     ) -> BachCheckoutRequest:
+        if request.customer_name is None:
+            raise ValueError("Customer name is required for Bachs checkouts")
+
         payload: BachCheckoutRequest = {
             "pricing": {
                 "currency": request.currency.value,
                 "amount": BachMapper.minor_to_decimal(request.amount_minor),
             },
-            "customer": {"email": request.email},
+            "customer": {"email": request.email, "name": request.customer_name},
             "reference": reference,
         }
 
         if request.payment_methods:
-            payload["payment_methods"] = [
+            payload["allowed_payment_method_types"] = [
                 BachMapper._map_collection_method(method)
                 for method in request.payment_methods
             ]

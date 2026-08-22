@@ -42,6 +42,7 @@ def checkout_request(
         amount_minor=5_000,
         currency=Currency.NGN,
         email="customer@example.test",
+        customer_name="Ada Lovelace",
         payment_methods=methods,
     )
 
@@ -143,7 +144,11 @@ def test_mapper_maps_compatible_checkout_methods() -> None:
     )
 
     assert payload["pricing"]["amount"] == "50.00"
-    assert payload.get("payment_methods") == [
+    assert payload["customer"] == {
+        "email": "customer@example.test",
+        "name": "Ada Lovelace",
+    }
+    assert payload.get("allowed_payment_method_types") == [
         "card",
         "bank_transfer",
         "mobile_money",
@@ -167,6 +172,14 @@ def test_bach_maps_optional_metadata_and_caller_reference() -> None:
         )["reference"]
         == "railswitch-payout"
     )
+
+
+def test_bach_requires_a_customer_name_for_checkout() -> None:
+    request = checkout_request()
+    request.customer_name = None
+
+    with pytest.raises(ValueError, match="Customer name"):
+        BachMapper.to_checkout_request(request, "railswitch-reference")
 
 
 @pytest.mark.parametrize(
