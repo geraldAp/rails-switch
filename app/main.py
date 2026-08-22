@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.api.routes.payment import router as payment_router
+from app.payments.errors import PaymentProviderError
 
 app = FastAPI(
     title="RailSwitch",
@@ -8,6 +10,16 @@ app = FastAPI(
 )
 
 app.include_router(payment_router)
+
+
+@app.exception_handler(PaymentProviderError)
+async def payment_provider_error_handler(
+    _: Request, error: PaymentProviderError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=error.http_status_code,
+        content={"detail": error.public_detail()},
+    )
 
 
 @app.get("/health")
