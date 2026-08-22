@@ -55,8 +55,7 @@ def update_env_example(env_path: Path) -> bool:
     existing_variables = {
         line.split("=", maxsplit=1)[0].strip()
         for line in existing_content.splitlines()
-        if "=" in line
-        and line.split("=", maxsplit=1)[0].strip().isidentifier()
+        if "=" in line and line.split("=", maxsplit=1)[0].strip().isidentifier()
     }
 
     sections_to_add = []
@@ -106,15 +105,10 @@ def install_generated_dependencies(
     with pyproject_path.open("rb") as file:
         pyproject = tomllib.load(file)
 
-    project_dependencies = (
-        pyproject.get("project", {}).get("dependencies", [])
-    )
+    project_dependencies = pyproject.get("project", {}).get("dependencies", [])
 
     all_installed = all(
-        any(
-            dependency.startswith(name)
-            for dependency in project_dependencies
-        )
+        any(dependency.startswith(name) for dependency in project_dependencies)
         for name in GENERATED_RUNTIME_DEPENDENCIES
     )
 
@@ -170,17 +164,10 @@ def main() -> None:
         print(f"Absolute path: {target_path.resolve()}")
 
         if target_path.exists():
-            print(
-                f"Cannot initialize RailSwitch: "
-                f"{target_path} already exists."
-            )
+            print(f"Cannot initialize RailSwitch: {target_path} already exists.")
             return
 
-        template_path = (
-            Path(__file__).parent
-            / "templates"
-            / "payments"
-        )
+        template_path = Path(__file__).parent / "templates" / "payments"
 
         shutil.copytree(
             template_path,
@@ -190,45 +177,23 @@ def main() -> None:
         print(f"RailSwitch initialized at: {target_path}")
 
         if update_env_example(Path(".env.example")):
-            print(
-                "Updated .env.example with "
-                "RailSwitch environment variables."
-            )
+            print("Updated .env.example with RailSwitch environment variables.")
         else:
-            print(
-                ".env.example already contains "
-                "all RailSwitch variables."
-            )
+            print(".env.example already contains all RailSwitch variables.")
 
-        dependency_status = install_generated_dependencies(
-            Path.cwd()
-        )
+        dependency_status = install_generated_dependencies(Path.cwd())
 
         match dependency_status:
             case DependencyInstallStatus.INSTALLED:
-                print(
-                    "Installed required RailSwitch dependencies."
-                )
+                print("Installed required RailSwitch dependencies.")
 
             case DependencyInstallStatus.ALREADY_INSTALLED:
-                print(
-                    "All required RailSwitch dependencies "
-                    "are already installed."
-                )
+                print("All required RailSwitch dependencies are already installed.")
 
             case DependencyInstallStatus.FAILED:
-                print(
-                    "RailSwitch was scaffolded, but "
-                    "dependency installation failed."
-                )
-                print(
-                    "Run: uv add "
-                    + " ".join(GENERATED_RUNTIME_DEPENDENCIES)
-                )
+                print("RailSwitch was scaffolded, but dependency installation failed.")
+                print("Run: uv add " + " ".join(GENERATED_RUNTIME_DEPENDENCIES))
 
             case DependencyInstallStatus.SKIPPED:
                 print("\nInstall required dependencies:")
-                print(
-                    "  uv add "
-                    + " ".join(GENERATED_RUNTIME_DEPENDENCIES)
-                )
+                print("  uv add " + " ".join(GENERATED_RUNTIME_DEPENDENCIES))
