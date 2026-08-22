@@ -4,6 +4,7 @@ import httpx2
 
 from app.payments.enums import PaymentOperation, PaymentProvider
 from app.payments.errors import send_provider_request
+from app.payments.providers.stripe.errors import parse_error_details
 from app.payments.providers.stripe.types import (
     StripeCheckoutRequest,
     StripeCheckoutSession,
@@ -13,6 +14,9 @@ from app.payments.providers.stripe.types import (
 
 
 class StripeClient:
+    secret_key: str
+    base_url: str
+
     def __init__(
         self, secret_key: str, base_url: str = "https://api.stripe.com"
     ) -> None:
@@ -35,6 +39,7 @@ class StripeClient:
                 ),
                 provider=PaymentProvider.STRIPE,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
             return cast(StripeCheckoutSession, response.json())
 
@@ -47,6 +52,7 @@ class StripeClient:
                 ),
                 provider=PaymentProvider.STRIPE,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
             return cast(StripeCheckoutSession, response.json())
 
@@ -61,6 +67,7 @@ class StripeClient:
                 ),
                 provider=PaymentProvider.STRIPE,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
             return cast(StripePaymentIntent, response.json())
 
@@ -72,6 +79,7 @@ class StripeClient:
                 ),
                 provider=PaymentProvider.STRIPE,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
             return cast(StripePayout, response.json())
 
@@ -82,14 +90,14 @@ def _form_data(payload: StripeCheckoutRequest) -> dict[str, str]:
 
     def add(value: object, key: str) -> None:
         if isinstance(value, dict):
-            for nested_key, nested_value in value.items():
+            for nested_key, nested_value in cast(dict[str, object], value).items():
                 add(nested_value, f"{key}[{nested_key}]")
         elif isinstance(value, list):
-            for index, item in enumerate(value):
+            for index, item in enumerate(cast(list[object], value)):
                 add(item, f"{key}[{index}]")
         else:
             encoded[key] = str(value)
 
-    for key, value in payload.items():
+    for key, value in cast(dict[str, object], cast(object, payload)).items():
         add(value, key)
     return encoded

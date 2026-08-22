@@ -7,16 +7,27 @@ from app.payments.enums import PaymentOperation, PaymentProvider
 from app.payments.errors import (
     PaymentProviderError,
     ProviderErrorCategory,
+    ProviderErrorParser,
     provider_error_from_response,
     send_provider_request,
+)
+from app.payments.providers.bach.errors import (
+    parse_error_details as parse_bach_error_details,
+)
+from app.payments.providers.paystack.errors import (
+    parse_error_details as parse_paystack_error_details,
+)
+from app.payments.providers.stripe.errors import (
+    parse_error_details as parse_stripe_error_details,
 )
 
 
 @pytest.mark.parametrize(
-    ("provider", "payload", "expected_code", "expected_category"),
+    ("provider", "error_parser", "payload", "expected_code", "expected_category"),
     [
         (
             PaymentProvider.STRIPE,
+            parse_stripe_error_details,
             {
                 "error": {
                     "code": "parameter_invalid_empty",
@@ -29,6 +40,7 @@ from app.payments.errors import (
         ),
         (
             PaymentProvider.PAYSTACK,
+            parse_paystack_error_details,
             {
                 "status": False,
                 "message": "Email Address is required",
@@ -40,6 +52,7 @@ from app.payments.errors import (
         ),
         (
             PaymentProvider.BACH,
+            parse_bach_error_details,
             {
                 "detail": "base_currency 'NGN' is not held by this organization.",
                 "error_code": "BASE_CURRENCY_NOT_HELD_BY_ORG",
@@ -51,6 +64,7 @@ from app.payments.errors import (
 )
 def test_provider_error_parses_each_documented_error_shape(
     provider: PaymentProvider,
+    error_parser: ProviderErrorParser,
     payload: dict[str, object],
     expected_code: str,
     expected_category: ProviderErrorCategory,
@@ -59,6 +73,7 @@ def test_provider_error_parses_each_documented_error_shape(
         provider=provider,
         operation=PaymentOperation.COLLECTION,
         response=httpx2.Response(400, json=payload),
+        error_parser=error_parser,
     )
 
     assert error.provider is provider
@@ -96,6 +111,7 @@ def test_bachs_documented_http_error_scenarios_are_normalized(
             status_code,
             json={"detail": "Provider failure", "error_code": code},
         ),
+        error_parser=parse_bach_error_details,
     )
 
     assert error.category is expected_category
@@ -116,6 +132,7 @@ def test_stripe_insufficient_balance_is_normalized() -> None:
                 }
             },
         ),
+        error_parser=parse_stripe_error_details,
     )
 
     assert error.category is ProviderErrorCategory.INSUFFICIENT_FUNDS
@@ -135,6 +152,7 @@ def test_paystack_processor_error_is_normalized() -> None:
                 "code": "card_declined",
             },
         ),
+        error_parser=parse_paystack_error_details,
     )
 
     assert error.category is ProviderErrorCategory.PROCESSOR
@@ -150,6 +168,7 @@ def test_network_error_is_retryable_and_has_no_provider_payload() -> None:
                 unavailable(),
                 provider=PaymentProvider.PAYSTACK,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_paystack_error_details,
             )
         )
 

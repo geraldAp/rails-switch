@@ -4,6 +4,7 @@ import httpx2
 
 from app.payments.enums import Country, PaymentOperation, PaymentProvider
 from app.payments.errors import send_provider_request
+from app.payments.providers.paystack.errors import parse_error_details
 from app.payments.providers.paystack.types import (
     PaystackCheckoutRequest,
     PaystackCheckoutResponse,
@@ -16,6 +17,9 @@ from app.payments.providers.paystack.types import (
 
 
 class PaystackClient:
+    secrets: dict[Country, str]
+    base_url: str
+
     def __init__(
         self,
         secrets: dict[Country, str],
@@ -54,6 +58,7 @@ class PaystackClient:
                 ),
                 provider=PaymentProvider.PAYSTACK,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
 
             return cast(PaystackCheckoutResponse, response.json())
@@ -73,6 +78,7 @@ class PaystackClient:
                 ),
                 provider=PaymentProvider.PAYSTACK,
                 operation=PaymentOperation.COLLECTION,
+                error_parser=parse_error_details,
             )
 
             return cast(PaystackVerificationResponse, response.json())
@@ -90,6 +96,7 @@ class PaystackClient:
                 ),
                 provider=PaymentProvider.PAYSTACK,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
 
             return cast(PaystackTransferResponse, response.json())
@@ -110,6 +117,7 @@ class PaystackClient:
                 ),
                 provider=PaymentProvider.PAYSTACK,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
 
             return cast(PaystackTransferRecipientResponse, response.json())
@@ -128,6 +136,7 @@ class PaystackClient:
                 ),
                 provider=PaymentProvider.PAYSTACK,
                 operation=PaymentOperation.DISBURSEMENT,
+                error_parser=parse_error_details,
             )
 
             return cast(PaystackTransferResponse, response.json())
