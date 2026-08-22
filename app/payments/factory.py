@@ -1,8 +1,8 @@
-from app.payments.contracts import PaymentProvider
-from app.payments.enums import (
+from .contracts import PaymentProvider
+from .enums import (
     Country,
 )
-from app.payments.enums import (
+from .enums import (
     PaymentProvider as Provider,
 )
 

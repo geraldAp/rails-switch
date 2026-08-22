@@ -1,7 +1,7 @@
 from dataclasses import replace
 from uuid import uuid4
 
-from app.payments.contracts import (
+from ...contracts import (
     CheckoutRequest,
     CheckoutResponse,
     DisbursementRequest,
@@ -10,9 +10,9 @@ from app.payments.contracts import (
     VerificationRequest,
     VerificationResponse,
 )
-from app.payments.enums import PaymentOperation
-from app.payments.providers.paystack.client import PaystackClient
-from app.payments.providers.paystack.mapper import PaystackMapper
+from ...enums import PaymentOperation
+from .client import PaystackClient
+from .mapper import PaystackMapper
 
 
 class PaystackProvider(PaymentProvider):

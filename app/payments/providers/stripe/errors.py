@@ -1,6 +1,6 @@
 from typing import cast
 
-from app.payments.errors import ProviderErrorCategory, ProviderErrorDetails
+from ...errors import ProviderErrorCategory, ProviderErrorDetails
 
 
 def parse_error_details(raw_response: dict[str, object]) -> ProviderErrorDetails:

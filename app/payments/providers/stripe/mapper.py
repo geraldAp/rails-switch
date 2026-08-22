@@ -1,15 +1,15 @@
-from app.payments.contracts import (
+from ...contracts import (
     CheckoutRequest,
     CheckoutResponse,
     VerificationResponse,
 )
-from app.payments.enums import (
+from ...enums import (
     CollectionMethod,
     Currency,
     PaymentProvider,
     PaymentStatus,
 )
-from app.payments.providers.stripe.types import (
+from .types import (
     StripeCheckoutRequest,
     StripeCheckoutSession,
     StripePaymentIntent,

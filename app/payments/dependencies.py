@@ -1,15 +1,15 @@
 from functools import lru_cache
 
-from app.payments.config import settings
-from app.payments.enums import Country
-from app.payments.factory import PaymentProviderFactory
-from app.payments.providers.bach.client import BachClient
-from app.payments.providers.bach.provider import BachProvider
-from app.payments.providers.paystack.client import PaystackClient
-from app.payments.providers.paystack.provider import PaystackProvider
-from app.payments.providers.stripe.client import StripeClient
-from app.payments.providers.stripe.provider import StripeProvider
-from app.payments.service import PaymentService
+from .config import settings
+from .enums import Country
+from .factory import PaymentProviderFactory
+from .providers.bach.client import BachClient
+from .providers.bach.provider import BachProvider
+from .providers.paystack.client import PaystackClient
+from .providers.paystack.provider import PaystackProvider
+from .providers.stripe.client import StripeClient
+from .providers.stripe.provider import StripeProvider
+from .service import PaymentService
 
 
 def build_payment_service() -> PaymentService:

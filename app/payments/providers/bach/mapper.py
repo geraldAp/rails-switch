@@ -1,22 +1,22 @@
 from decimal import Decimal, InvalidOperation
 
-from app.payments.contracts import (
+from ...contracts import (
     CheckoutRequest,
     CheckoutResponse,
     DisbursementRequest,
     DisbursementResponse,
     VerificationResponse,
 )
-from app.payments.enums import (
+from ...enums import (
     CollectionMethod,
     Currency,
     DisbursementMethod,
     PaymentStatus,
 )
-from app.payments.enums import (
+from ...enums import (
     PaymentProvider as Provider,
 )
-from app.payments.providers.bach.types import (
+from .types import (
     BachCheckoutDetails,
     BachCheckoutRequest,
     BachCheckoutResponse,

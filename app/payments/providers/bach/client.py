@@ -2,10 +2,10 @@ from typing import cast
 
 import httpx2
 
-from app.payments.enums import PaymentOperation, PaymentProvider
-from app.payments.errors import send_provider_request
-from app.payments.providers.bach.errors import parse_error_details
-from app.payments.providers.bach.types import (
+from ...enums import PaymentOperation, PaymentProvider
+from ...errors import send_provider_request
+from .errors import parse_error_details
+from .types import (
     BachCheckoutDetails,
     BachCheckoutRequest,
     BachCheckoutResponse,
