@@ -1,1 +1,0 @@
-RailSwitch payment module template.

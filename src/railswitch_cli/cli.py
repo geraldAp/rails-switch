@@ -31,10 +31,7 @@ def main() -> None:
         print(f"Absolute path: {target_path.resolve()}")
 
         if target_path.exists():
-            print(
-                f"Cannot initialize RailSwitch: "
-                f"{target_path} already exists."
-            )
+            print(f"Cannot initialize RailSwitch: {target_path} already exists.")
             return
 
         template_path = Path(__file__).parent / "templates" / "payments"
