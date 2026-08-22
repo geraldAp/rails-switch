@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from app.core.config import settings
+from app.payments.config import settings
 from app.payments.enums import Country
 from app.payments.factory import PaymentProviderFactory
 from app.payments.providers.bach.client import BachClient

@@ -3,7 +3,7 @@ from typing import Self
 
 import pytest
 
-from app.core.config import settings
+from app.payments.config import settings
 from app.payments.contracts import (
     CheckoutRequest,
     DisbursementRequest,
