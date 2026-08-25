@@ -1,55 +1,31 @@
 from .contracts import PaymentProvider
-from .enums import (
-    Country,
-)
-from .enums import (
-    PaymentProvider as Provider,
-)
+from .enums import Country, PaymentProvider as Provider
 
 
 class PaymentProviderFactory:
-    def __init__(
-        self,
-        paystack: PaymentProvider,
-        bach: PaymentProvider,
-        stripe: PaymentProvider,
-    ):
-        self.paystack = paystack
-        self.bach = bach
-        self.stripe = stripe
+    def __init__(self, providers: dict[Provider, PaymentProvider]):
+        self._providers = providers
 
     def get_provider(
-        self,
-        country: Country,
-        provider: Provider | None = None,
+        self, country: Country, provider: Provider | None = None
     ) -> PaymentProvider:
-        if provider is None:
-            provider = self._get_default_provider(country)
+        provider = provider or self._get_default_provider(country)
+        try:
+            return self._providers[provider]
+        except KeyError as error:
+            raise ValueError(f"Provider {provider.value!r} was not generated") from error
 
-        match provider:
-            case Provider.PAYSTACK:
-                return self.paystack
-
-            case Provider.BACH:
-                return self.bach
-            case Provider.STRIPE:
-                return self.stripe
-
-            case _:
-                raise ValueError(f"Provider {provider} is not configured")
-
-    def _get_default_provider(
-        self,
-        country: Country,
-    ) -> Provider:
-        match country:
-            case Country.GHANA | Country.SOUTH_AFRICA:
-                return Provider.PAYSTACK
-
-            case Country.NIGERIA:
-                return Provider.BACH
-            case Country.UNITED_STATES | Country.CANADA:
-                return Provider.STRIPE
-
-            case _:
-                raise ValueError(f"No default provider is configured for {country}")
+    def _get_default_provider(self, country: Country) -> Provider:
+        routes = {
+            Country.GHANA: Provider.PAYSTACK,
+            Country.SOUTH_AFRICA: Provider.PAYSTACK,
+            Country.NIGERIA: Provider.BACH,
+            Country.UNITED_STATES: Provider.STRIPE,
+            Country.CANADA: Provider.STRIPE,
+        }
+        try:
+            return routes[country]
+        except KeyError as error:
+            raise ValueError(
+                f"No generated provider is configured for country {country}"
+            ) from error

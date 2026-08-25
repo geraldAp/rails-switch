@@ -3,9 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class PaymentSettings(BaseSettings):
     # Paystack - Ghana and South Africa
+    paystack_callback_url: str = ""
     paystack_gh_secret_key: str | None = None
     paystack_za_secret_key: str | None = None
-    paystack_callback_url: str = ""
 
     # Bachs - Nigeria
     bach_api_key: str | None = None
