@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 
-from app.payments.enums import CollectionMethod, Country, Currency
+from ...payments.enums import CollectionMethod, Country, Currency
 
 
 class CheckoutRequestBody(BaseModel):

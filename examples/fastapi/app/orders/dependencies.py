@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.orders.service import OrderService
-from app.payments.dependencies import get_payment_service
-from app.payments.service import PaymentService
+from ..payments.dependencies import get_payment_service
+from ..payments.service import PaymentService
+from .service import OrderService
 
 
 def get_order_service(

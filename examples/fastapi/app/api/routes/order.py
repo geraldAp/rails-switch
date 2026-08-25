@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.schemas.orders import OrderCheckoutRequest, OrderCheckoutResponse
-from app.orders.dependencies import get_order_service
-from app.orders.service import OrderService
+from ...orders.dependencies import get_order_service
+from ...orders.service import OrderService
+from ..schemas.orders import OrderCheckoutRequest, OrderCheckoutResponse
 
 router = APIRouter(
     prefix="/orders",

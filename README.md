@@ -61,7 +61,7 @@ Implementation source of truth: `src/railswitch_cli/cli.py` (`ProviderDefinition
 Operations via `PaymentService`:
 
 * **Hosted checkout collection** — all three providers (`collect`)
-* **Disbursement** — Paystack (transfer) and Bachs (bank-account payout) where provider matches contract; **Stripe `disburse()` intentionally raises** `ValueError: Stripe payout creation is unsupported` (`app/payments/providers/stripe/provider.py:32`)
+* **Disbursement** — Paystack (transfer) and Bachs (bank-account payout) where provider matches contract; **Stripe `disburse()` intentionally raises** `ValueError: Stripe payout creation is unsupported` (`examples/fastapi/app/payments/providers/stripe/provider.py:32`)
 * **Verification** — collection or disbursement (`verify` requires explicit `provider` + `provider_reference`)
 
 ## Generated module
@@ -85,7 +85,7 @@ payments/
 
 ## Provider-country capability routing
 
-Runtime routing in `app/payments/factory.py:5`:
+Runtime routing in the reference app’s `examples/fastapi/app/payments/factory.py:5`:
 
 ```python
 ROUTES = {
@@ -120,7 +120,7 @@ Designed to support multiple providers per country later without a default-provi
 
 ## Payment contracts
 
-`app/payments/contracts.py`:
+Reference contract: `examples/fastapi/app/payments/contracts.py`:
 
 **CheckoutRequest**
 * `country: Country`, `amount_minor: int`, `currency: Currency`, `email: str`
@@ -137,7 +137,7 @@ Responses (`CheckoutResponse`, `DisbursementResponse`, `VerificationResponse`) c
 
 ## Reference vs provider_reference
 
-* `reference` — caller/application correlation ID. Host owns it. For orders: `order_id` becomes `CheckoutRequest.reference` and `metadata={"order_id": order_id}` (`app/orders/service.py:47`). If omitted, adapters generate `railswitch-<uuid>`.
+* `reference` — caller/application correlation ID. Host owns it. For orders: `order_id` becomes `CheckoutRequest.reference` and `metadata={"order_id": order_id}` (`examples/fastapi/app/orders/service.py:47`). If omitted, adapters generate `railswitch-<uuid>`.
 * `provider_reference` — identifier used to retrieve/verify with the provider (Paystack transfer reference, Bachs `checkout_id`, Stripe `checkout_session_id`). Required for `verify`.
 
 Keeping both lets the host preserve business context without pushing `order_id` into the payment layer.
@@ -173,28 +173,28 @@ Full set when all selected: `PAYSTACK_GH_SECRET_KEY`, `PAYSTACK_ZA_SECRET_KEY`, 
 
 > This is an example host, not a requirement. RailSwitch works with any Python framework.
 
-`app/main.py` mounts `order_router` (`/orders`), not a generic payment router.
+The reference app at `examples/fastapi/app/main.py` mounts `order_router` (`/orders`), not a generic payment router. Run it from `examples/fastapi/` with `uv run uvicorn app.main:app --reload`.
 
-**Route:** `POST /orders/{order_id}/checkout` (`app/api/routes/order.py:15`)
+**Route:** `POST /orders/{order_id}/checkout` (`examples/fastapi/app/api/routes/order.py:15`)
 
 **Flow:**
 
 ```text
-OrderCheckoutRequest  (HTTP, app/api/schemas/orders.py)
+OrderCheckoutRequest  (HTTP, examples/fastapi/app/api/schemas/orders.py)
         ↓
-OrderService  (app/orders/service.py, injected via app/orders/dependencies.py:get_order_service → get_payment_service @lru_cache)
+OrderService  (examples/fastapi/app/orders/service.py, injected via examples/fastapi/app/orders/dependencies.py:get_order_service → get_payment_service @lru_cache)
         ↓
 CheckoutRequest  (reference=order_id, metadata={"order_id": order_id}, provider optional)
         ↓
-PaymentService.collect  (app/payments/service.py:18)
+PaymentService.collect  (examples/fastapi/app/payments/service.py:18)
         ↓
 Provider adapter
         ↓
 CheckoutResponse  (internal)
         ↓
-OrderCheckoutResult  (@dataclass(slots=True), 6 fields, app/orders/service.py:14)
+OrderCheckoutResult  (@dataclass(slots=True), 6 fields, examples/fastapi/app/orders/service.py:14)
         ↓
-OrderCheckoutResponse  (HTTP, app/api/schemas/orders.py:22 - 4 fields, provider fields intentionally not exposed)
+OrderCheckoutResponse  (HTTP, examples/fastapi/app/api/schemas/orders.py:22 - 4 fields, provider fields intentionally not exposed)
 ```
 
 * `OrderCheckoutRequest`: `country, currency, amount_minor, email, customer_name?, payment_methods?, provider?` (`PaymentProvider | None`)
@@ -227,11 +227,11 @@ Response `200`:
 }
 ```
 
-`provider` in the request is optional; when omitted, factory selects the sole provider for the country. `ValueError` from routing/config maps to `422` via `HTTPException` in the route; `PaymentProviderError` maps via `@app.exception_handler` in `app/main.py:15`.
+`provider` in the request is optional; when omitted, factory selects the sole provider for the country. `ValueError` from routing/config maps to `422` via `HTTPException` in the route; `PaymentProviderError` maps via `@app.exception_handler` in `examples/fastapi/app/main.py:15`.
 
 ## Errors
 
-`app/payments/errors.py:PaymentProviderError` normalizes provider/network failures. Public shape (`public_detail()`):
+`examples/fastapi/app/payments/errors.py:PaymentProviderError` normalizes provider/network failures. Public shape (`public_detail()`):
 
 ```json
 {
