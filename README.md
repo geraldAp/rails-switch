@@ -1,311 +1,231 @@
 # RailSwitch
 
-RailSwitch is a small Python/FastAPI  project that explores payment
-orchestration. Applications use one normalized payment interface while the
-project translates that interface to the APIs of individual payment providers.
+RailSwitch is a **framework-agnostic Python payment orchestration and scaffolding project**. It gives a host application a normalized `PaymentService` and scaffolds the payment module **into the host's own codebase** via a CLI.
 
-It is an early MVP, not a production-ready payment platform.
+The repository includes a **FastAPI example application** under `app/` that shows how a host can use RailSwitch internally. RailSwitch itself does **not** require FastAPI.
 
-## Why RailSwitch exists
+It is an early MVP, not a full blown production-ready payment platform but it stills gives you the chance to build something production ready on top of it .
 
-Payment providers differ in request payloads, authentication, payment-method
-names, amount formats, transaction states, and payout flows. For example,
-Paystack accepts amounts in minor units, while Bachs accepts decimal strings;
-Paystack transfers first create a recipient, while Bachs payouts first create a
-destination that may need approval.
+## Intended architecture
 
-RailSwitch keeps those details in provider adapters and gives the rest of an
-application shared contracts such as `CheckoutRequest`, `DisbursementRequest`,
-and `VerificationRequest`.
+```text
+Host application route / domain logic
+        ↓
+Application service (example: OrderService)
+        ↓
+  PaymentService
+        ↓
+PaymentProviderFactory  (dict: Provider -> Provider adapter)
+        ↓
+  Provider adapter (Paystack / Bachs / Stripe)
+        ↓
+   Provider API
+```
 
-## Current capabilities
+Generated source belongs to the host application. Applications call `PaymentService` directly; they do not make HTTP requests to a payment microservice (but you are liberty to make it work for you as a microservice ).
 
-Implemented in the payment layer:
+## CLI usage
 
-- Hosted checkout collection.
-- Account disbursement.
-- Transaction verification.
-- Paystack and Bachs provider adapters.
-- Normalized `pending`, `success`, and `failed` statuses.
+Install/run via `uvx` (no fork-local clone needed for users):
 
-Intentionally not implemented:
+```bash
+uvx railswitch init
+uvx railswitch init --path app/modules/payments
+uvx railswitch init --providers paystack
+uvx railswitch init --providers paystack stripe
+uvx railswitch init --providers paystack --countries GH
+uvx railswitch init --countries NG
+```
 
-- Refunds, webhooks, reconciliation, retries, circuit breakers, and smart
-  routing.
-- Transaction or beneficiary persistence.
-- Additional providers such as Stripe.
-- HTTP routes for disbursement and verification.
+* No `--providers` → all providers (`paystack`, `bach`, `stripe`)
+* No `--countries` → all supported countries for the selected providers
+* `--countries` without `--providers` infers the provider(s) where unambiguous (e.g. `GH` → `paystack`, `NG` → `bachs`, `CA` → `stripe`). If explicit `--providers` is given, country filtering is applied to those providers and validation fails if a provider does not support a selected country.
+* Only selected provider folders/config/env/factory routes are generated. Deduplication preserves input order (`--providers stripe stripe paystack` → `stripe, paystack`).
 
-The FastAPI application currently registers only `GET /health`. A checkout
-route handler and its Pydantic request schema exist in `app/api`, but the router
-is not yet included by `app/main.py`; consequently, `/payments/checkout` is not
-currently a live endpoint.
+Source of truth for generation is the provider metadata in `src/railswitch_cli/cli.py` (`ProviderDefinition` / `ProviderCountryDefinition` / `SelectedProviderDefinition`).
 
 ## Supported providers and countries
 
-`PaymentProviderFactory` supplies the following default routing:
+| Provider | Countries | Codes | Default operations via RailSwitch contract |
+| --- | --- | --- | --- |
+| **Paystack** | Ghana, South Africa | `GH`, `ZA` | Checkout (hosted), transfer disbursement, verification |
+| **Bachs** | Nigeria | `NG` | Checkout (hosted), bank-account payout, verification |
+| **Stripe** | United States, Canada | `US`, `CA` | Checkout (hosted), verification; **disbursement intentionally unsupported** (`StripeProvider.disburse()` raises `ValueError` - no external account payout) |
 
-| Country | Default provider | Adapter support |
-| --- | --- | --- |
-| Ghana (`GH`) | Paystack | Checkout, transfer disbursement, verification |
-| Nigeria (`NG`) | Bachs | Checkout, bank-account payout, verification |
-| South Africa (`ZA`) | Paystack | Checkout, transfer disbursement, verification |
+Operations on `PaymentService`:
 
-An explicit provider can be supplied for verification. The factory chooses the
-provider implementation only; provider configuration stays in the provider's
-client. In particular, the one Paystack client resolves separate Ghana and
-South Africa credentials from the request country.
+* `collect(CheckoutRequest) -> CheckoutResponse` - hosted checkout
+* `disburse(DisbursementRequest) -> DisbursementResponse` - where provider supports the RailSwitch disbursement contract (Paystack/Bachs)
+* `verify(VerificationRequest) -> VerificationResponse` - collection or disbursement verification
 
-## Architecture
+`PaymentProviderFactory` is generated with routes only for the selected countries, e.g. `--providers paystack --countries GH` generates only `Country.GHANA: Provider.PAYSTACK`.
 
-```text
-HTTP route / internal caller
-          |
-          v
-    PaymentService
-          |
-          v
-PaymentProviderFactory
-          |
-          v
- PaystackProvider or BachProvider
-          |
-          v
-        Mapper
-          |
-          v
-        Client
-          |
-          v
- External provider API
-```
+## Generated structure
 
-| Layer | Responsibility |
-| --- | --- |
-| API schemas and routes | Validate and translate HTTP input at the application edge. The current checkout schema is `CheckoutRequestBody`. |
-| `PaymentService` | Thin common interface: select a provider and call `collect`, `disburse`, or `verify`. |
-| `PaymentProviderFactory` | Choose the default adapter from country, or use the explicit provider supplied for verification. |
-| Provider | Implement the shared `PaymentProvider` contract and coordinate a provider operation. |
-| Mapper | Translate RailSwitch contracts to/from provider-specific payloads and statuses. |
-| Client | Own base URL, bearer authentication, HTTPX2 requests, and response parsing. |
-| Provider types | Define provider API shapes with `TypedDict`/enums. |
-| Shared contracts and enums | Define the provider-neutral dataclass requests/responses and supported RailSwitch values. |
-| `dependencies.py` | Manual composition root for clients, providers, factory, and `PaymentService`. |
-
-### HTTP models vs. internal contracts
-
-Pydantic models at the HTTP edge are not the same thing as RailSwitch's internal
-dataclass contracts. For example, `CheckoutRequestBody` uses `EmailStr` to
-validate a request body, then the route creates a `CheckoutRequest` for the
-payment layer. This keeps FastAPI/Pydantic concerns out of provider adapters
-and lets internal callers use `PaymentService` directly rather than making HTTP
-requests back into the same application.
-
-## Dependency wiring
-
-`build_payment_service()` in `app/payments/dependencies.py` assembles the
-object graph:
+`uvx railswitch init --path app/payments` copies shared files and only selected providers, then generates provider-sensitive modules:
 
 ```text
-PaystackClient + BachClient
-             |
-             v
-PaystackProvider + BachProvider
-             |
-             v
-    PaymentProviderFactory
-             |
-             v
-       PaymentService
+app/payments/
+├── config.py          # generated: PaymentSettings with only selected country/provider fields
+├── contracts.py       # shared dataclass contracts + PaymentProvider ABC
+├── dependencies.py    # generated: build_payment_service() / get_payment_service()
+├── enums.py           # Country, Currency, CollectionMethod, PaymentProvider, etc.
+├── errors.py          # PaymentProviderError + normalized error handling
+├── factory.py         # generated: PaymentProviderFactory(providers: dict[Provider, PaymentProvider])
+├── service.py         # PaymentService (collect/disburse/verify)
+└── providers/
+    ├── __init__.py
+    ├── paystack/      # only if selected
+    ├── bach/          # only if selected
+    └── stripe/        # only if selected
 ```
 
-Constructing or injecting `PaymentService` does not make a payment. A payment
-operation happens only when a caller awaits `collect()`, `disburse()`, or
-`verify()`. `get_payment_service()` wraps construction in `@lru_cache` so a
-FastAPI dependency can reuse the assembled service; the cache is not itself a
-dependency-injection framework.
+* `contracts.py`, `service.py`, `enums.py`, `errors.py`, and each `providers/<name>/` are framework-neutral and use relative imports, so a custom `--path` (e.g. `app/modules/payments`) works.
+* `config.py`, `dependencies.py`, `factory.py` are **generated** from selected provider/country capabilities.
+* The factory constructor is **dict-based**: `PaymentProviderFactory({Provider.PAYSTACK: paystack, ...})`, not `paystack=..., bach=...`.
 
-## Repository structure
+## Configuration
 
-```text
-app/
-├── api/
-│   ├── routes/payment.py       # Checkout handler (not yet mounted)
-│   └── schemas/payments.py     # Pydantic HTTP schema
-├── core/config.py              # Pydantic settings
-├── db/                         # SQLAlchemy/Alembic foundation
-├── main.py                     # FastAPI application and health route
-└── payments/
-    ├── contracts.py            # Provider-neutral dataclass contracts and ABC
-    ├── enums.py                # RailSwitch status, country, currency, methods
-    ├── factory.py              # Default provider selection
-    ├── service.py              # Thin orchestration layer
-    ├── dependencies.py         # Manual composition root
-    └── providers/
-        ├── paystack/           # Paystack types, mapper, client, provider
-        └── bach/               # Bachs types, mapper, client, provider
-tests/
-├── test_payment_service.py     # Factory and service orchestration coverage
-├── test_paystack.py            # Paystack mapping, client, and provider coverage
-└── test_bach.py                # Bachs mapping, client, provider, wiring tests
-```
+Settings use `pydantic-settings` with `.env` (`app/payments/config.py`). The CLI updates `.env.example` (never `.env`) with only the variables for selected capabilities.
 
-## Payment flow examples
-
-### Checkout flow
-
-The checkout handler is written to perform this flow once its router is mounted:
-
-```text
-POST /payments/checkout
-  -> FastAPI validates CheckoutRequestBody
-  -> route builds CheckoutRequest
-  -> PaymentService.collect()
-  -> factory selects the default provider for country
-  -> provider mapper builds the provider payload
-  -> provider client calls the external API
-  -> mapper normalizes the response to CheckoutResponse
-```
-
-Disbursement and verification are implemented on `PaymentService` and both
-providers, but they do not currently have HTTP handlers. Internal application
-code can call the service directly.
-
-### Provider differences that RailSwitch absorbs
-
-- **Paystack checkout and transfer amounts** remain minor-unit values. Its
-  client selects the Ghana or South Africa bearer key from `request.country`.
-- **Paystack disbursement** creates a transfer recipient, generates one
-  `railswitch-<uuid>` application reference when the caller did not supply one,
-  then initiates the transfer. Paystack uses that value as its transfer lookup
-  reference, so `reference` and `provider_reference` can legitimately match.
-- **Bachs checkout and payout amounts** are mapped from integer minor units to
-  two-decimal `Decimal` strings (for example, `5000` NGN becomes `"50.00"`).
-- **Bachs checkout verification** uses the Bachs `checkout_id` as
-  `provider_reference`, because Bachs retrieves checkout sessions by that ID.
-- **Bachs payout destinations** must report `is_usable: true` before a payout
-  is created. A pending-review destination raises a clear error instead of
-  pretending a payout exists.
-
-## Getting started
-
-Prerequisites:
-
-- Python 3.13 or newer (the project declares `requires-python = ">=3.13"`).
-- [uv](https://docs.astral.sh/uv/).
+Examples:
 
 ```bash
-git clone https://github.com/geraldAp/rails-switch.git
-cd rails-switch
-uv sync
+uvx railswitch init --providers paystack --countries GH
 ```
 
-The clone URL above is the repository's configured `origin` remote. If you are
-working from a fork, use your fork's URL instead.
-
-## Environment variables
-
-Settings load from `.env`; `.gitignore` excludes that file. Never commit real
-keys.
-
-Create a local `.env` when you need to construct and use the payment service:
+generates in `config.py` / `.env.example`:
 
 ```env
 PAYSTACK_GH_SECRET_KEY=
-PAYSTACK_ZA_SECRET_KEY=
 PAYSTACK_CALLBACK_URL=
-BACH_API_KEY=
-STRIPE_SECRET_KEY=
-STRIPE_SUCCESS_URL=http://127.0.0.1:8000/docs?checkout_session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=http://127.0.0.1:8000/docs?checkout=cancelled
 ```
 
-| Variable | Required for payment flows | Notes |
-| --- | --- | --- |
-| `PAYSTACK_GH_SECRET_KEY` | Yes | Paystack credentials for Ghana. |
-| `PAYSTACK_ZA_SECRET_KEY` | Yes | Paystack credentials for South Africa. |
-| `PAYSTACK_CALLBACK_URL` | Yes in practice for Paystack checkout | Its code default is an empty string, but a real checkout should use a valid callback URL. |
-| `BACH_API_KEY` | Yes | Bachs bearer key. |
-| `BACH_BASE_URL` | No | Defaults to `https://sandbox-api.bachs.io`. Keep sandbox keys with the sandbox URL. |
-| `STRIPE_SECRET_KEY` | Yes for Stripe | Stripe secret key for the selected mode. |
-| `STRIPE_SUCCESS_URL` | Yes for Stripe Checkout | Absolute URL to send the customer to after a successful payment. |
-| `STRIPE_CANCEL_URL` | Yes for Stripe Checkout | Absolute URL to send the customer to after they cancel checkout. |
-| `APP_NAME` | No | Defaults to `RailSwitch`. |
-| `ENVIRONMENT` | No | Defaults to `development`. |
-| `DATABASE_URL` | No | Defaults to `sqlite+aiosqlite:///./railswitch.db`. |
-
-`build_payment_service()` fails clearly if either Paystack secret or the Bachs
-API key is missing. The health endpoint alone does not construct the payment
-service.
-
-## Running the API
+and does **not** require/generate `PAYSTACK_ZA_SECRET_KEY=`.
 
 ```bash
-uv run uvicorn app.main:app --reload
+uvx railswitch init --providers stripe
 ```
 
-Then visit:
-
-- Health: <http://127.0.0.1:8000/health>
-- Swagger UI: <http://127.0.0.1:8000/docs>
-- OpenAPI JSON: <http://127.0.0.1:8000/openapi.json>
-
-At present, the registered application endpoint is:
-
-```http
-GET /health
+```env
+STRIPE_SECRET_KEY=
+STRIPE_SUCCESS_URL=
+STRIPE_CANCEL_URL=
 ```
 
-Response:
+Full variable set (when all providers/countries selected):
+
+| Variable | Notes |
+| --- | --- |
+| `PAYSTACK_GH_SECRET_KEY` | Ghana; per-country credential |
+| `PAYSTACK_ZA_SECRET_KEY` | South Africa |
+| `PAYSTACK_CALLBACK_URL` | shared Paystack callback |
+| `BACH_API_KEY` | Bachs bearer key |
+| `BACH_BASE_URL` | defaults to `https://sandbox-api.bachs.io` |
+| `STRIPE_SECRET_KEY` | Stripe secret |
+| `STRIPE_SUCCESS_URL` / `STRIPE_CANCEL_URL` | Stripe Checkout redirect URLs (required for `collect`) |
+
+`build_payment_service()` validates required credentials via `_paystack_secrets()` / `_bach_api_key()` / `_stripe_secret_key()` helpers generated only for selected providers/countries; missing credentials raise `ValueError`.
+
+## Example integration: FastAPI
+
+The repository's `app/` is **only one** possible host. It demonstrates:
+
+```text
+POST /orders/{order_id}/checkout
+        ↓
+OrderCheckoutRequest (HTTP schema)
+        ↓
+OrderService
+        ↓
+CheckoutRequest (internal, reference=order_id, metadata={"order_id": order_id})
+        ↓
+PaymentService.collect(...)
+        ↓
+Provider
+        ↓
+CheckoutResponse (internal)
+        ↓
+OrderCheckoutResult (app service result)
+        ↓
+OrderCheckoutResponse (HTTP)
+```
+
+### Boundary
+
+* `CheckoutRequest` / `CheckoutResponse` in `app/payments/contracts.py` are **RailSwitch internal** dataclass contracts (6-field `CheckoutResponse` including `provider`, `provider_reference`).
+* `OrderCheckoutRequest` (4-field input) / `OrderCheckoutResponse` (4-field output: `order_id`, `reference`, `status`, `checkout_url`) in `app/api/schemas/orders.py` are **host HTTP** Pydantic schemas - `provider`/`provider_reference` are intentionally **not** exposed.
+* `OrderCheckoutResult` in `app/orders/service.py` (`@dataclass(slots=True)`) is the host service result (6 fields: `order_id`, `reference`, `provider_reference`, `provider`, `status`, `checkout_url`) mapping from internal `CheckoutResponse`.
+* `OrderService` (`app/orders/service.py`) is injected with `PaymentService` via `app/orders/dependencies.py:get_order_service()` which reuses `get_payment_service()` (`@lru_cache`).
+
+### Route
+
+`app/api/routes/order.py`:
+
+```python
+@router.post("/{order_id}/checkout", response_model=OrderCheckoutResponse)
+async def checkout(order_id: str, body: OrderCheckoutRequest, order_service=Depends(get_order_service)) -> OrderCheckoutResponse: ...
+```
+
+`app/main.py` mounts `order_router` (not a generic `/payments/checkout`):
+
+```python
+from app.api.routes.order import router as order_router
+app.include_router(order_router)
+```
+
+`GET /health` remains.
+
+### Example request/response
+
+Request:
 
 ```json
-{"status":"ok"}
-```
-
-The checkout request model prepared for the unmounted route accepts this body:
-
-```json
+POST /orders/ord_123/checkout
 {
   "country": "GH",
-  "amount_minor": 5000,
   "currency": "GHS",
+  "amount_minor": 5000,
   "email": "customer@example.com",
   "customer_name": "Customer Example",
   "payment_methods": ["card", "mobile_money"]
 }
 ```
 
-`amount_minor: 5000` represents GHS 50.00. When the route is mounted and the
-provider call succeeds, the normalized checkout result keeps application and
-provider identifiers separate:
+`OrderService` builds:
+
+```python
+CheckoutRequest(
+    country=Country.GHANA, currency=Currency.GHS, amount_minor=5000,
+    email="customer@example.com", customer_name="Customer Example",
+    payment_methods=[CollectionMethod.CARD, ...],
+    reference="ord_123", metadata={"order_id": "ord_123"}
+)
+```
+
+Response (`OrderCheckoutResponse` in `app/api/schemas/orders.py` - intentionally 4 fields):
 
 ```json
 {
-  "reference": "PAY-456",
-  "provider_reference": "provider-or-checkout-reference",
-  "provider": "paystack",
+  "order_id": "ord_123",
+  "reference": "ord_123",
   "status": "pending",
-  "checkout_url": "https://provider-hosted-checkout.example",
-  "payment_methods": ["card", "mobile_money"]
+  "checkout_url": "https://checkout.example.test"
 }
 ```
 
-`reference` is the caller's application correlation ID (supplied or generated
-by RailSwitch before the provider call). `provider_reference` is the provider
-identifier required for later verification. These may have the same value for
-Paystack, but are intentionally separate concepts. Verification accepts a
-`provider_reference`; without persistence, RailSwitch cannot recover the
-caller reference during verification. A future transaction record will retain
-both values together with metadata and the raw provider response.
+`OrderCheckoutResult` (service layer, `app/orders/service.py`) contains 6 fields including `provider` and `provider_reference`, but `OrderCheckoutResponse` (HTTP) **intentionally drops** `provider` and `provider_reference` - they remain internal to the application service and are not exposed at the HTTP boundary. See `app/api/schemas/orders.py:21` for current 4-field schema.
 
-`customer_name` is required for Bachs checkout sessions because Bachs requires
-both a customer email and name. Other providers currently ignore it.
+## Payment references
 
-## Provider error contract
+* `reference` - caller/application correlation ID. For orders: `order_id` is used as `CheckoutRequest.reference` and also stored as `metadata={"order_id": order_id}` so the application owns context. If absent, provider adapters generate `railswitch-<uuid>`.
+* `provider_reference` - provider lookup identifier required for later `verify` (e.g. Paystack transfer reference, Bachs `checkout_id`, Stripe `checkout_session_id`). Distinct from `reference` even when they coincide (Paystack).
 
-All provider clients normalize unsuccessful HTTP responses and network failures
-to a `PaymentProviderError`. HTTP routes return the same public shape without
-exposing the provider's raw response:
+Verification uses `provider_reference`; without persistence the application must retain the mapping.
+
+## Provider errors
+
+All provider clients normalize failures via `app/payments/errors.py:PaymentProviderError`:
 
 ```json
 {
@@ -320,102 +240,67 @@ exposing the provider's raw response:
 }
 ```
 
-The stable categories are `validation`, `authentication`, `forbidden`,
-`not_found`, `conflict`, `insufficient_funds`, `rate_limited`, `processor`,
-`provider_unavailable`, and `unknown`. `raw_response` stays internal for
-logging and future persistence.
+* `category`: `validation` (→422), `authentication`, `forbidden`, `not_found` (→404), `conflict` (→409), `insufficient_funds`, `rate_limited` (→429), `processor`, `provider_unavailable` (→502), `unknown`. `http_status_code` property maps category to HTTP.
+* `raw_response` is kept internal for logging, never exposed.
+* `app/main.py` registers `@app.exception_handler(PaymentProviderError)` returning `public_detail()`.
+* `ValueError` from factory/routing or missing config is caught at the route edge as `422` (`raise HTTPException(422, detail=str(error))`).
 
-Provider adapters parse the officially documented error shapes:
+Provider adapters parse documented error shapes per provider (see `tests/test_provider_errors.py`).
 
-| Provider | Official error reference | Fields used by RailSwitch |
-| --- | --- | --- |
-| Stripe | [Error codes](https://docs.stripe.com/error-codes) | `error.code`, `error.message`, `error.type` |
-| Paystack | [Errors](https://paystack.com/docs/api/errors/) | `message`, `code`, `type`, `meta` |
-| Bachs | [Error reference](https://docs.bachs.io/api-reference/error-reference) | `detail`, `error_code`, `doc_url` |
-
-When adding a provider, use that provider's official error documentation to
-map its error code and status to a RailSwitch category. Add tests for its
-validation, authentication, not-found, conflict, rate-limit, server-error,
-and network-failure scenarios.
-
-## Running tests
+## Development (contributors)
 
 ```bash
+git clone https://github.com/geraldAp/rails-switch.git
+cd rails-switch
+uv sync
 uv run pytest
-```
-
-The suite covers factory routing, Paystack country-aware credentials and
-transfers, Bachs amount/status mappings, Bachs checkout and payout behaviour,
-the destination-approval guard, client idempotency headers, and composition.
-
-Useful additional checks:
-
-```bash
 uv run ruff check .
 uv run ruff format --check .
 ```
 
-## Adding a provider
-
-Follow the existing compact adapter shape:
-
-```text
-providers/
-└── new_provider/
-    ├── client.py
-    ├── mapper.py
-    ├── provider.py
-    └── types.py
-```
-
-1. Implement `PaymentProvider` in `provider.py`.
-2. Define only the provider request/response shapes needed in `types.py`.
-3. Put HTTPX2 endpoints and authentication in `client.py`.
-4. Translate RailSwitch contracts and provider shapes in `mapper.py`.
-5. Add the provider to `PaymentProviderFactory` and choose its default country
-   routing where appropriate.
-6. Add constructor-injected configuration in `core/config.py` and compose it
-   in `dependencies.py`.
-7. Add focused mapper, client, provider, and routing tests.
-
-Keep provider credentials and API semantics out of `PaymentService` and the
-factory. Avoid adding extra architectural layers unless the project genuinely
-needs them.
-
-## Design principles
-
-- Keep orchestration thin.
-- Use normalized internal contracts.
-- Keep provider-specific details inside provider modules.
-- Let internal services call `PaymentService` directly.
-- Keep configuration separate from provider selection.
-- Prefer small, readable code over premature complexity.
+For **users**, prefer the CLI (`uvx railswitch init --providers ... --countries ...`) over cloning. Generated source is owned by the host app.
 
 ## Status and limitations
 
-RailSwitch is evolving as a learning/open-source project. Important current
-limitations include no payment persistence, no mounted payment router, no HTTP
-disbursement or verification routes, no webhook handling, and no production
-readiness claim. Bachs defaults to its sandbox base URL. The database and
-Alembic foundation exist, but the payment layer does not persist transactions
-or payout destinations.
+Early open-source, not completely production-ready. Intentionally missing: persistence of transactions/provider metadata, webhooks, reconciliation, retries/circuit breakers, production hardening. Bachs defaults to sandbox (`https://sandbox-api.bachs.io`). DB/Alembic foundation exists but payment layer does not persist transactions. Intended missing areas are not bugs.
 
-## Roadmap
+Implemented and not missing: Stripe adapter (checkout + verification, disbursement intentionally unsupported), order example (`POST /orders/{order_id}/checkout` is live), Paystack/Bachs/Stripe routing via dict factory.
 
-- Mount and complete the existing payment HTTP surface.
-- Persist transaction/provider metadata so verification does not require a
-  caller to resupply it.
-- Add more countries and provider adapters while retaining the shared contract.
+## Architecture detail
 
-## Contributing
+`PaymentProviderFactory` now takes `dict[Provider, PaymentProvider]`:
 
-Contributions are welcome. Fork the repository, create a focused branch, add
-or update tests, and open a pull request. Provider contributions should follow
-the existing client/mapper/provider/types arrangement and keep the shared
-service and factory small.
+```python
+PaymentProviderFactory({
+    Provider.PAYSTACK: paystack,
+    Provider.BACH: bach,
+    Provider.STRIPE: stripe,
+})
+```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the required provider test cases and
-contribution workflow.
+`_get_default_provider(country)` uses generated `routes: dict[Country, Provider]` built from selected countries, e.g.:
+
+```python
+routes = {
+            Country.GHANA: Provider.PAYSTACK,
+            Country.CANADA: Provider.STRIPE,
+}
+```
+
+Only selected routes exist; unknown country raises `ValueError("No generated provider is configured for country ...")`, unknown provider raises `ValueError("Provider '...' was not generated")`.
+
+## Adding a provider
+
+Reflects current CLI metadata architecture (`src/railswitch_cli/cli.py`):
+
+1. Implement `providers/<name>/{client.py, mapper.py, provider.py, types.py}` implementing `PaymentProvider` (`collect`/`disburse`/`verify`).
+2. Add `ProviderDefinition` with `country_capabilities: tuple[ProviderCountryDefinition(...)]` including `config_fields`, `environment_variables`, `credential_setting` per-country and `shared_*` for provider-level config.
+3. Add `shared_config_fields`, `shared_environment_variables`, `dependency_imports`, `service_construction`, `helper_functions`.
+4. Update `PROVIDERS` tuple; `PROVIDERS_BY_NAME`, `COUNTRY_CODES` derive automatically.
+5. Factory routing, `config.py` comment/fields, `dependencies.py` helpers, and `.env.example` sections are generated - do not hardcode a fixed `__init__(paystack=..., bach=..., stripe=...)`.
+6. Add mapper/client/provider/routing tests and verify `CATEGORIES` per provider docs.
+
+Keep provider specifics out of `PaymentService` and keep layers small.
 
 ## License
 
