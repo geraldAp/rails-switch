@@ -1,5 +1,6 @@
 from .contracts import PaymentProvider
-from .enums import Country, PaymentProvider as Provider
+from .enums import Country
+from .enums import PaymentProvider as Provider
 
 
 class PaymentProviderFactory:
@@ -13,7 +14,9 @@ class PaymentProviderFactory:
         try:
             return self._providers[provider]
         except KeyError as error:
-            raise ValueError(f"Provider {provider.value!r} was not generated") from error
+            raise ValueError(
+                f"Provider {provider.value!r} was not generated"
+            ) from error
 
     def _get_default_provider(self, country: Country) -> Provider:
         routes = {

@@ -37,9 +37,11 @@ def test_factory_routes_countries_and_honors_an_explicit_provider() -> None:
     bach = VerificationProviderSpy()
     stripe = VerificationProviderSpy()
     factory = PaymentProviderFactory(
-        paystack=paystack,
-        bach=bach,
-        stripe=stripe,
+        {
+            Provider.PAYSTACK: paystack,
+            Provider.BACH: bach,
+            Provider.STRIPE: stripe,
+        }
     )
 
     assert factory.get_provider(Country.GHANA) is paystack
@@ -54,9 +56,11 @@ def test_verify_forwards_the_request_to_the_selected_provider() -> None:
     paystack = VerificationProviderSpy()
     service = PaymentService(
         PaymentProviderFactory(
-            paystack=paystack,
-            bach=VerificationProviderSpy(),
-            stripe=VerificationProviderSpy(),
+            {
+                Provider.PAYSTACK: paystack,
+                Provider.BACH: VerificationProviderSpy(),
+                Provider.STRIPE: VerificationProviderSpy(),
+            }
         )
     )
     request = VerificationRequest(

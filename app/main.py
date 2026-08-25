@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes.payment import router as payment_router
+from app.api.routes.order import router as order_router
 from app.payments.errors import PaymentProviderError
 
 app = FastAPI(
@@ -9,7 +9,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
-app.include_router(payment_router)
+app.include_router(order_router)
 
 
 @app.exception_handler(PaymentProviderError)
