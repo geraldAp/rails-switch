@@ -2,17 +2,6 @@
 name = "railswitch"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = [
-    "aiosqlite>=0.22.1",
-    "alembic>=1.19.1",
-    "email-validator>=2.3.0",
-    "fastapi>=0.141.1",
-    "greenlet>=3.5.5",
-    "httpx2>=2.12.0",
-    "pydantic-settings>=2.15.0",
-    "sqlalchemy>=2.0.52",
-    "uvicorn[standard]>=0.52.4",
-]
 
 [project.scripts]
 railswitch = "railswitch_cli.cli:main"
@@ -26,6 +15,15 @@ packages = ["src/railswitch_cli"]
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.19.1",
+    "email-validator>=2.3.0",
+    "fastapi>=0.141.1",
+    "greenlet>=3.5.5",
+    "httpx2>=2.12.0",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0.52",
+    "uvicorn[standard]>=0.52.4",
     "pytest>=9.1.1",
     "ruff>=0.16.3",
 ]

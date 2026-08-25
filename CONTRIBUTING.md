@@ -1,59 +1,166 @@
 # Contributing to RailSwitch
 
-RailSwitch accepts provider adapters only when their tests prove the provider's
-real API contract. Tests should describe an observable provider rule, not just
-exercise a shared base class or assert that a method returns a value.
+RailSwitch is a framework-agnostic Python payment orchestration and scaffolding
+project. Keep contributions small, provider-neutral where possible, and backed
+by focused tests.
 
-## Adding a provider
+## Development setup
 
-Keep the adapter split into `client.py`, `mapper.py`, `provider.py`, and
-`types.py`. The client owns HTTP details, the mapper owns translation, and the
-provider orchestrates the shared RailSwitch contracts. Do not put provider
-credentials or endpoint rules in `PaymentService` or the factory.
+RailSwitch requires Python 3.13 or newer and [uv](https://docs.astral.sh/uv/).
 
-## Required tests for a provider adapter
-
-Add focused tests for every operation the provider supports.
-
-| Layer | What a test must prove |
-| --- | --- |
-| Mapper | Exact provider request payload, amount/currency conversion, supported methods, rejection of unsupported methods, normalized status, `metadata`, and `raw_response`. |
-| Client | Exact HTTP method, URL, authentication headers, request payload, and the typed provider response returned from the HTTP boundary. |
-| Provider | The provider calls the correct client operation, generates a reference before an initiation call when needed, and returns the normalized response. |
-| Verification | `PaymentOperation` selects the correct provider endpoint and `provider_reference` is the exact lookup value passed to that endpoint. |
-| Factory | Country routing or an explicit provider override, when the provider changes routing. |
-| Error handling | Provider-specific documented error payloads map to `PaymentProviderError`; cover validation, authentication, not found, conflict, rate limit, provider `5xx`, and a network failure. |
-
-For an initiation response, test both identifiers deliberately:
-
-```text
-reference          = caller-supplied or RailSwitch-generated application ID
-provider_reference = the value required by the provider lookup endpoint
+```bash
+git clone https://github.com/geraldAp/rails-switch.git
+cd rails-switch
+uv sync
 ```
 
-Include one test where the values legitimately match and one where they differ
-when the provider supports both cases. Do not use an arbitrary provider `id` as
-`provider_reference`: consult the provider's retrieval or verification endpoint
-and test the exact required value.
-
-Use a small recording fake client in provider tests. It should capture the
-endpoint argument or payload that matters to the assertion. Avoid generic stub
-tests that merely return a fixed response without proving a provider-specific
-rule.
-
-For error tests, use the provider's official API error documentation as the
-source of the fixture shape and error codes. Do not copy one provider's error
-format into another adapter.
-
-## Running checks
-
-Run these before opening a pull request:
+Run all checks before opening a pull request:
 
 ```bash
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uvx basedpyright app/payments tests
 ```
 
-Do not use live credentials or call real provider APIs in the test suite.
+The FastAPI app in this repository is an example integration, not a RailSwitch
+requirement.
+
+## Architecture
+
+```text
+PaymentService
+      ↓
+PaymentProviderFactory
+      ↓
+Provider → Mapper → Client → Provider API
+```
+
+- `contracts.py` defines normalized RailSwitch request and response contracts.
+- `service.py` is thin orchestration: it delegates provider selection to the
+  factory and operations to the selected provider.
+- `factory.py` validates and selects provider-country capabilities.
+- `provider.py` implements `PaymentProvider`.
+- `mapper.py` translates between RailSwitch contracts and provider payloads.
+- `client.py` owns provider HTTP/API behavior.
+- `types.py` holds provider-specific API shapes.
+- `errors.py` normalizes provider failures.
+
+Keep provider-specific credentials, endpoints, payloads, and compatibility
+rules out of `PaymentService`.
+
+## Provider-country routing
+
+Routing is modeled as:
+
+```text
+Country → set[PaymentProvider]
+```
+
+When one provider is configured for a country, collection or disbursement
+selects it if `provider` is omitted. When multiple providers are configured,
+the caller must choose one explicitly. An incompatible provider-country pair is
+rejected. RailSwitch v0.1 has no default-provider priority.
+
+Preserve this model when adding providers or countries. Do not reintroduce a
+fixed provider constructor or a single default-provider map.
+
+## Adding a provider
+
+A provider normally includes:
+
+```text
+providers/<provider>/
+├── __init__.py
+├── client.py
+├── errors.py
+├── mapper.py
+├── provider.py
+└── types.py
+```
+
+Checklist:
+
+1. Add the `PaymentProvider` enum entry when needed.
+2. Implement the `PaymentProvider` contract.
+3. Define provider API request and response types.
+4. Implement client authentication and endpoints.
+5. Add request/response mapping and provider error normalization.
+6. Add `ProviderDefinition` metadata in `src/railswitch_cli/cli.py`.
+7. Add its `ProviderCountryDefinition` capabilities and required shared or
+   country-specific environment/config metadata.
+8. Add focused provider, routing, and CLI tests.
+9. Verify generated scaffolds include the provider only when selected.
+
+Do not manually add a fixed provider constructor for a new adapter.
+
+## Adding a country to a provider
+
+Country support is metadata-driven. It normally starts by adding a
+`ProviderCountryDefinition` to the provider's `country_capabilities`:
+
+```text
+ProviderDefinition
+└── country_capabilities += ProviderCountryDefinition(...)
+```
+
+A capability can define its country code, `Country` enum name, display name,
+country-specific environment variables, config fields, and credential setting.
+Update the `Country` enum when necessary; update currency/method enums or
+provider client/mapper behavior only when the provider API genuinely requires
+it. Add tests for routing and credentials.
+
+Do not create provider-country combination templates.
+
+## Provider conformance requirements
+
+Every provider must be added to the shared conformance matrix in
+`tests/test_provider_conformance.py`. The matrix verifies the common
+RailSwitch contract: collection, verification, normalized references and
+statuses, disbursement or an explicit unsupported result, and unsupported
+methods or capabilities where relevant.
+
+Shared conformance tests **and** provider-specific tests are required.
+Provider-specific suites should continue to cover unique API payloads,
+authentication, error shapes, country/provider capability routing, and any
+provider-specific idempotency behavior. Normalized provider error coverage must
+exist for every provider, whether in the conformance suite or the dedicated
+error tests.
+
+## Tests
+
+Provider work should cover applicable request mapping, response/status and
+amount normalization, authentication/header behavior, collection,
+disbursement, verification, documented provider errors, network failures,
+country-specific credentials/routing, and idempotency behavior where present.
+Use mocks, spies, or fakes—never real provider APIs or credentials.
+
+Scaffolding changes should verify selected provider directories and countries;
+generated `config.py`, `dependencies.py`, `factory.py`, and `.env.example`;
+omitted imports; generated code compilation/imports; and provider-country
+routing. `config.py`, `dependencies.py`, and `factory.py` are generated
+dynamically by the CLI and must not be reintroduced as static templates.
+
+## Contracts and errors
+
+Changes to `CheckoutRequest`, `CheckoutResponse`, `DisbursementRequest`,
+`DisbursementResponse`, `VerificationRequest`, `VerificationResponse`, or
+`PaymentProvider` affect every adapter. Keep changes deliberate,
+backwards-conscious, normalized, and tested across affected providers. Do not
+add provider-specific fields to shared contracts unless they express a genuine
+RailSwitch concept.
+
+Provider clients should normalize failures into `PaymentProviderError` and map
+provider codes/statuses to `ProviderErrorCategory`. Do not expose raw provider
+responses publicly; `raw_response` may contain sensitive payment or customer
+data.
+
+## Pull requests and security
+
+Use descriptive branch names, clear commits, and focused pull requests. Include
+what changed, why, affected provider/country, tests added or updated, relevant
+official provider documentation, and known limitations. Avoid unrelated
+refactors.
+
+Never commit API keys or secrets, add them to fixtures, or expose them in
+examples. Keep `.env` uncommitted and sanitize provider payloads used in tests
+and documentation.
