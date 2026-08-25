@@ -598,3 +598,20 @@ def test_init_countries_ca_infers_stripe(tmp_path: Path, monkeypatch) -> None:
     assert "stripe_secret_key" in config
     factory = (tmp_path / "app" / "payments" / "factory.py").read_text()
     assert "Country.CANADA: Provider.STRIPE" in factory
+
+
+def test_init_factory_routes_are_indented(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["railswitch", "init", "--providers", "paystack", "--countries", "GH"],
+    )
+
+    main()
+
+    factory = (tmp_path / "app" / "payments" / "factory.py").read_text()
+    assert (
+        "        routes = {\n            Country.GHANA: Provider.PAYSTACK,\n        }"
+        in factory
+    )
+    assert "\n    Country.GHANA:" not in factory

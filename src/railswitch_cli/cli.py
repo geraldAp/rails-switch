@@ -336,7 +336,7 @@ def generate_selected_files(
     )
 
     routes = "\n".join(
-        f"        Country.{country.enum_name}: Provider.{selected_provider.provider.provider_enum},"
+        f"            Country.{country.enum_name}: Provider.{selected_provider.provider.provider_enum},"
         for selected_provider in providers
         for country in selected_provider.countries
     )
