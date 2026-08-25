@@ -26,15 +26,18 @@ Host code never needs to expose generic RailSwitch HTTP endpoints. Call `Payment
 
 ## CLI usage
 
+PyPI package: `railswitch-payments`
+CLI command: `railswitch`
+
 Run without installing:
 
 ```bash
-uvx railswitch init
-uvx railswitch init --path app/modules/payments
-uvx railswitch init --providers paystack
-uvx railswitch init --providers paystack stripe
-uvx railswitch init --providers paystack --countries GH
-uvx railswitch init --countries NG
+uvx --from railswitch-payments railswitch init
+uvx --from railswitch-payments railswitch init --path app/modules/payments
+uvx --from railswitch-payments railswitch init --providers paystack
+uvx --from railswitch-payments railswitch init --providers paystack stripe
+uvx --from railswitch-payments railswitch init --providers paystack --countries GH
+uvx --from railswitch-payments railswitch init --countries NG
 ```
 
 Behavior:
@@ -250,7 +253,7 @@ Response `200`:
 **Users** — scaffold into your app:
 
 ```bash
-uvx railswitch init --providers paystack --countries GH
+uvx --from railswitch-payments railswitch init --providers paystack --countries GH
 ```
 
 No clone needed. Generated code is yours to own.
