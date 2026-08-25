@@ -29,4 +29,10 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["examples/fastapi"]
+
+[tool.basedpyright]
+extraPaths = ["examples/fastapi"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "railswitch_cli"]

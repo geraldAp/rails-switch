@@ -25,6 +25,13 @@ uv run ruff format --check .
 The FastAPI app in this repository is an example integration, not a RailSwitch
 requirement.
 
+## Repository layout
+
+- `src/railswitch_cli/` is the published CLI and scaffolder.
+- `src/railswitch_cli/templates/` contains the static source copied into generated payment modules.
+- `examples/fastapi/` contains the reference FastAPI host application and its Alembic setup.
+- `tests/` covers the CLI, provider contracts, and reference-app integration.
+
 ## Architecture
 
 ```text

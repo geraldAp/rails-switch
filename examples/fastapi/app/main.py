@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes.order import router as order_router
-from app.payments.errors import PaymentProviderError
+from .api.routes.order import router as order_router
+from .payments.errors import PaymentProviderError
 
 app = FastAPI(
     title="RailSwitch",

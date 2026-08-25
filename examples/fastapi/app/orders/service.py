@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 
-from app.payments.contracts import CheckoutRequest
-from app.payments.enums import (
+from ..payments.contracts import CheckoutRequest
+from ..payments.enums import (
     CollectionMethod,
     Country,
     Currency,
     PaymentProvider,
     PaymentStatus,
 )
-from app.payments.service import PaymentService
+from ..payments.service import PaymentService
 
 
 @dataclass(slots=True)
