@@ -1,4 +1,5 @@
 import asyncio
+from typing import override
 
 from fastapi.testclient import TestClient
 
@@ -16,13 +17,16 @@ from app.payments.enums import (
     PaymentStatus,
 )
 from app.payments.errors import PaymentProviderError, ProviderErrorCategory
+from app.payments.factory import PaymentProviderFactory
 from app.payments.service import PaymentService
 
 
 class CheckoutServiceSpy(PaymentService):
     def __init__(self) -> None:
+        super().__init__(provider_factory=PaymentProviderFactory({}))
         self.request: CheckoutRequest | None = None
 
+    @override
     async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
         self.request = request
         return CheckoutResponse(
@@ -59,16 +63,13 @@ def test_order_checkout_route_reaches_order_service() -> None:
     assert service.request.metadata == {"order_id": "order_123"}
     assert service.request.amount_minor == 5000
     assert service.request.country.value == "GH"
-    data = response.json()
-    assert set(data) == set(OrderCheckoutResponse.model_fields)
-    assert data == {
-        "order_id": "order_123",
-        "reference": "payment-reference",
-        "provider_reference": "provider-reference",
-        "provider": "paystack",
-        "status": "pending",
-        "checkout_url": "https://checkout.example.test",
-    }
+    expected_response = OrderCheckoutResponse(
+        order_id="order_123",
+        reference="payment-reference",
+        status=PaymentStatus.PENDING,
+        checkout_url="https://checkout.example.test",
+    )
+    assert response.json() == expected_response.model_dump(mode="json")
 
 
 def test_order_service_constructs_checkout_request_correctly() -> None:
@@ -117,23 +118,18 @@ def test_order_checkout_returns_public_order_checkout_response() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    data = response.json()
-    assert set(data) == set(OrderCheckoutResponse.model_fields)
-    assert data == {
-        "order_id": "ord_42",
-        "reference": "payment-reference",
-        "provider_reference": "provider-reference",
-        "provider": "paystack",
-        "status": "pending",
-        "checkout_url": "https://checkout.example.test",
-    }
+    expected_response = OrderCheckoutResponse(
+        order_id="ord_42",
+        reference="payment-reference",
+        status=PaymentStatus.PENDING,
+        checkout_url="https://checkout.example.test",
+    )
+    assert response.json() == expected_response.model_dump(mode="json")
 
 
-class ProviderErrorServiceSpy(PaymentService):
-    def __init__(self) -> None:
-        pass
-
-    async def collect(self, _request: CheckoutRequest) -> CheckoutResponse:
+class ProviderErrorServiceSpy(CheckoutServiceSpy):
+    @override
+    async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
         raise PaymentProviderError(
             provider=PaymentProvider.STRIPE,
             operation=PaymentOperation.COLLECTION,
@@ -176,11 +172,9 @@ def test_order_checkout_returns_normalized_provider_error() -> None:
 
 
 def test_order_checkout_propagates_value_error_as_422() -> None:
-    class ValueErrorSpy(PaymentService):
-        def __init__(self) -> None:
-            pass
-
-        async def collect(self, _request: CheckoutRequest) -> CheckoutResponse:
+    class ValueErrorSpy(CheckoutServiceSpy):
+        @override
+        async def collect(self, request: CheckoutRequest) -> CheckoutResponse:
             raise ValueError("No generated provider is configured for country GH")
 
     app.dependency_overrides[get_payment_service] = lambda: ValueErrorSpy()
