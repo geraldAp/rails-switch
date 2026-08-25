@@ -21,6 +21,7 @@ class PaymentService:
     ) -> CheckoutResponse:
         provider = self.provider_factory.get_provider(
             country=request.country,
+            provider=request.provider,
         )
 
         return await provider.collect(request)
@@ -31,6 +32,7 @@ class PaymentService:
     ) -> DisbursementResponse:
         provider = self.provider_factory.get_provider(
             country=request.country,
+            provider=request.provider,
         )
 
         return await provider.disburse(request)

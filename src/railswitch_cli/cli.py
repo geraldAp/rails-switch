@@ -335,10 +335,15 @@ def generate_selected_files(
         f"{helpers}\n"
     )
 
+    providers_by_country: dict[str, list[str]] = {}
+    for selected_provider in providers:
+        for country in selected_provider.countries:
+            providers_by_country.setdefault(country.enum_name, []).append(
+                selected_provider.provider.provider_enum
+            )
     routes = "\n".join(
-        f"            Country.{country.enum_name}: Provider.{selected_provider.provider.provider_enum},"
-        for selected_provider in providers
-        for country in selected_provider.countries
+        f"    Country.{country}: {{{', '.join(f'Provider.{provider}' for provider in provider_enums)}}},"
+        for country, provider_enums in providers_by_country.items()
     )
     _write_factory(target_path, routes)
 
@@ -388,27 +393,43 @@ def _write_factory(target_path: Path, routes: str) -> None:
     (target_path / "factory.py").write_text(
         "from .contracts import PaymentProvider\n"
         "from .enums import Country, PaymentProvider as Provider\n\n\n"
+        "ROUTES = {\n"
+        f"{routes}\n"
+        "}\n\n\n"
         "class PaymentProviderFactory:\n"
-        "    def __init__(self, providers: dict[Provider, PaymentProvider]):\n"
+        "    def __init__(\n"
+        "        self,\n"
+        "        providers: dict[Provider, PaymentProvider],\n"
+        "        routes: dict[Country, set[Provider]] | None = None,\n"
+        "    ):\n"
         "        self._providers = providers\n\n"
+        "        self._routes = ROUTES if routes is None else routes\n\n"
         "    def get_provider(\n"
         "        self, country: Country, provider: Provider | None = None\n"
         "    ) -> PaymentProvider:\n"
-        "        provider = provider or self._get_default_provider(country)\n"
+        "        configured_providers = self._routes.get(country)\n"
+        "        if not configured_providers:\n"
+        "            raise ValueError(\n"
+        '                f"No generated provider is configured for country {country.value}"\n'
+        "            )\n\n"
+        "        if provider is not None:\n"
+        "            if provider not in configured_providers:\n"
+        "                raise ValueError(\n"
+        '                    f"Provider {provider.value!r} is not configured for country "\n'
+        '                    f"{country.value}"\n'
+        "                )\n"
+        "            return self._get_generated_provider(provider)\n\n"
+        "        if len(configured_providers) > 1:\n"
+        "            raise ValueError(\n"
+        '                f"Multiple providers are configured for country {country.value}; "\n'
+        '                "specify a provider"\n'
+        "            )\n\n"
+        "        return self._get_generated_provider(next(iter(configured_providers)))\n\n"
+        "    def _get_generated_provider(self, provider: Provider) -> PaymentProvider:\n"
         "        try:\n"
         "            return self._providers[provider]\n"
         "        except KeyError as error:\n"
         '            raise ValueError(f"Provider {provider.value!r} was not generated") from error\n\n'
-        "    def _get_default_provider(self, country: Country) -> Provider:\n"
-        "        routes = {\n"
-        f"{routes}\n"
-        "        }\n"
-        "        try:\n"
-        "            return routes[country]\n"
-        "        except KeyError as error:\n"
-        "            raise ValueError(\n"
-        '                f"No generated provider is configured for country {country}"\n'
-        "            ) from error\n"
     )
 
 

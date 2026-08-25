@@ -382,7 +382,7 @@ def test_init_with_paystack_ghana_generates_only_ghana_configuration(
     assert "paystack_za_secret_key" not in config
     assert "Country.GHANA: settings.paystack_gh_secret_key" in dependencies
     assert "SOUTH_AFRICA" not in dependencies
-    assert "Country.GHANA: Provider.PAYSTACK" in factory
+    assert "Country.GHANA: {Provider.PAYSTACK}" in factory
     assert "SOUTH_AFRICA" not in factory
     assert "PAYSTACK_GH_SECRET_KEY=" in env_example
     assert "PAYSTACK_CALLBACK_URL=" in env_example
@@ -405,7 +405,7 @@ def test_init_with_paystack_south_africa_generates_only_za_configuration(
     factory = (payments_path / "factory.py").read_text()
     assert "paystack_za_secret_key" in config
     assert "paystack_gh_secret_key" not in config
-    assert "Country.SOUTH_AFRICA: Provider.PAYSTACK" in factory
+    assert "Country.SOUTH_AFRICA: {Provider.PAYSTACK}" in factory
     assert "Country.GHANA" not in factory
 
 
@@ -433,8 +433,8 @@ def test_init_with_both_paystack_countries_generates_both_capabilities(
     factory = (payments_path / "factory.py").read_text()
     assert "paystack_gh_secret_key" in config
     assert "paystack_za_secret_key" in config
-    assert "Country.GHANA: Provider.PAYSTACK" in factory
-    assert "Country.SOUTH_AFRICA: Provider.PAYSTACK" in factory
+    assert "Country.GHANA: {Provider.PAYSTACK}" in factory
+    assert "Country.SOUTH_AFRICA: {Provider.PAYSTACK}" in factory
 
 
 def test_init_accepts_stripe_canada_and_rejects_stripe_ghana(
@@ -446,7 +446,7 @@ def test_init_accepts_stripe_canada_and_rejects_stripe_ghana(
     )
     main()
     assert (
-        "Country.CANADA: Provider.STRIPE"
+        "Country.CANADA: {Provider.STRIPE}"
         in (tmp_path / "app" / "payments" / "factory.py").read_text()
     )
 
@@ -492,8 +492,8 @@ def test_init_with_multiple_providers_and_countries_generates_capabilities(
     assert "paystack_za_secret_key" not in config
     assert "BACH_API_KEY=" not in env_example
     assert "PAYSTACK_ZA_SECRET_KEY=" not in env_example
-    assert "Country.GHANA: Provider.PAYSTACK" in factory
-    assert "Country.CANADA: Provider.STRIPE" in factory
+    assert "Country.GHANA: {Provider.PAYSTACK}" in factory
+    assert "Country.CANADA: {Provider.STRIPE}" in factory
     assert "SOUTH_AFRICA" not in factory
     assert "UNITED_STATES" not in factory
 
@@ -597,7 +597,7 @@ def test_init_countries_ca_infers_stripe(tmp_path: Path, monkeypatch) -> None:
     config = (tmp_path / "app" / "payments" / "config.py").read_text()
     assert "stripe_secret_key" in config
     factory = (tmp_path / "app" / "payments" / "factory.py").read_text()
-    assert "Country.CANADA: Provider.STRIPE" in factory
+    assert "Country.CANADA: {Provider.STRIPE}" in factory
 
 
 def test_init_factory_routes_are_indented(tmp_path: Path, monkeypatch) -> None:
@@ -610,8 +610,4 @@ def test_init_factory_routes_are_indented(tmp_path: Path, monkeypatch) -> None:
     main()
 
     factory = (tmp_path / "app" / "payments" / "factory.py").read_text()
-    assert (
-        "        routes = {\n            Country.GHANA: Provider.PAYSTACK,\n        }"
-        in factory
-    )
-    assert "\n    Country.GHANA:" not in factory
+    assert "ROUTES = {\n    Country.GHANA: {Provider.PAYSTACK},\n}" in factory

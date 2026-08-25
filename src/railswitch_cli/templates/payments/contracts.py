@@ -19,6 +19,7 @@ class CheckoutRequest:
     currency: Currency
     email: str
     payment_methods: list[CollectionMethod] | None = None
+    provider: Provider | None = None
     reference: str | None = None
     metadata: dict[str, str] | None = None
     customer_name: str | None = None
@@ -46,6 +47,7 @@ class DisbursementRequest:
     account_number: str
     bank_code: str
     account_name: str | None = None
+    provider: Provider | None = None
     reference: str | None = None
     metadata: dict[str, str] | None = None
 

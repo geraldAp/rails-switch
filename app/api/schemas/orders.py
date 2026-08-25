@@ -16,6 +16,7 @@ class OrderCheckoutRequest(BaseModel):
     email: EmailStr
     customer_name: str | None = None
     payment_methods: list[CollectionMethod] | None = None
+    provider: PaymentProvider | None = None
 
 
 class OrderCheckoutResponse(BaseModel):

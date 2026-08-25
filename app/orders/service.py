@@ -34,6 +34,7 @@ class OrderService:
         email: str,
         customer_name: str | None = None,
         payment_methods: list[CollectionMethod] | None = None,
+        provider: PaymentProvider | None = None,
     ) -> OrderCheckoutResult:
         request = CheckoutRequest(
             country=country,
@@ -42,6 +43,7 @@ class OrderService:
             email=email,
             customer_name=customer_name,
             payment_methods=payment_methods,
+            provider=provider,
             reference=order_id,
             metadata={"order_id": order_id},
         )

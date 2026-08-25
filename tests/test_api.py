@@ -85,6 +85,7 @@ def test_order_service_constructs_checkout_request_correctly() -> None:
             email="customer@example.com",
             customer_name="Customer Example",
             payment_methods=[CollectionMethod.CARD],
+            provider=PaymentProvider.PAYSTACK,
         )
     )
 
@@ -92,6 +93,7 @@ def test_order_service_constructs_checkout_request_correctly() -> None:
     assert spy.request.reference == "order_999"
     assert spy.request.metadata == {"order_id": "order_999"}
     assert spy.request.email == "customer@example.com"
+    assert spy.request.provider is PaymentProvider.PAYSTACK
     assert result.order_id == "order_999"
     assert result.reference == "payment-reference"
     assert result.provider_reference == "provider-reference"

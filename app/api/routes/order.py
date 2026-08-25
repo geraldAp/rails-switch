@@ -27,6 +27,7 @@ async def checkout(
             email=str(body.email),
             customer_name=body.customer_name,
             payment_methods=body.payment_methods,
+            provider=body.provider,
         )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
